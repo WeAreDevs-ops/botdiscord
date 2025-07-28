@@ -25,6 +25,7 @@ const client = new Client({
 });
 
 const VERIFIED_USERS_FILE = 'verified-users.json';
+const CHANNEL_RESTRICTIONS_FILE = 'channel-restrictions.json';
 
 function loadVerifiedUsers() {
   try {
@@ -47,6 +48,27 @@ function saveVerifiedUsers(users) {
   }
 }
 
+function loadChannelRestrictions() {
+  try {
+    if (fs.existsSync(CHANNEL_RESTRICTIONS_FILE)) {
+      const data = fs.readFileSync(CHANNEL_RESTRICTIONS_FILE, 'utf8');
+      return JSON.parse(data);
+    }
+    return {};
+  } catch (error) {
+    console.error('Error loading channel restrictions:', error);
+    return {};
+  }
+}
+
+function saveChannelRestrictions(restrictions) {
+  try {
+    fs.writeFileSync(CHANNEL_RESTRICTIONS_FILE, JSON.stringify(restrictions, null, 2));
+  } catch (error) {
+    console.error('Error saving channel restrictions:', error);
+  }
+}
+
 const commands = [
   new SlashCommandBuilder()
     .setName('verify')
@@ -58,6 +80,23 @@ const commands = [
     .addStringOption(option =>
       option.setName('message')
         .setDescription('Custom message with invite link to send to verified users')
+        .setRequired(true))
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+
+  new SlashCommandBuilder()
+    .setName('setcommand')
+    .setDescription('Restrict a command to a specific channel (Admin only)')
+    .addStringOption(option =>
+      option.setName('command')
+        .setDescription('The command name to restrict')
+        .setRequired(true)
+        .addChoices(
+          { name: 'verify', value: 'verify' },
+          { name: 'restoreall', value: 'restoreall' }
+        ))
+    .addChannelOption(option =>
+      option.setName('channel')
+        .setDescription('The channel where this command can be used')
         .setRequired(true))
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 ].map(command => command.toJSON());
@@ -83,6 +122,21 @@ client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
   const { commandName } = interaction;
+
+  // Check channel restrictions
+  const channelRestrictions = loadChannelRestrictions();
+  if (channelRestrictions[commandName] && channelRestrictions[commandName] !== interaction.channelId) {
+    const restrictedChannel = interaction.guild.channels.cache.get(channelRestrictions[commandName]);
+    const channelName = restrictedChannel ? restrictedChannel.name : 'unknown';
+    
+    const restrictionEmbed = new EmbedBuilder()
+      .setColor('#ff0000')
+      .setTitle('🚫 Command Restricted')
+      .setDescription(`This command can only be used in <#${channelRestrictions[commandName]}> (${channelName})`)
+      .setTimestamp();
+
+    return await interaction.reply({ embeds: [restrictionEmbed], ephemeral: true });
+  }
 
   try {
     switch (commandName) {
@@ -186,6 +240,35 @@ client.on('interactionCreate', async interaction => {
           .setTimestamp();
 
         await interaction.editReply({ embeds: [resultEmbed] });
+        break;
+
+      case 'setcommand':
+        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && 
+            interaction.guild.ownerId !== interaction.user.id) {
+          return await interaction.reply({ 
+            content: 'You need Administrator permission or be the server owner to use this command.', 
+            ephemeral: true 
+          });
+        }
+
+        const commandToRestrict = interaction.options.getString('command');
+        const restrictedChannel = interaction.options.getChannel('channel');
+
+        const restrictions = loadChannelRestrictions();
+        restrictions[commandToRestrict] = restrictedChannel.id;
+        saveChannelRestrictions(restrictions);
+
+        const setCommandEmbed = new EmbedBuilder()
+          .setColor('#00ff00')
+          .setTitle('⚙️ Command Restriction Set')
+          .setDescription(`The \`/${commandToRestrict}\` command can now only be used in <#${restrictedChannel.id}>`)
+          .addFields(
+            { name: 'Command', value: `/${commandToRestrict}`, inline: true },
+            { name: 'Restricted Channel', value: `<#${restrictedChannel.id}>`, inline: true }
+          )
+          .setTimestamp();
+
+        await interaction.reply({ embeds: [setCommandEmbed], ephemeral: true });
         break;
     }
   } catch (error) {
