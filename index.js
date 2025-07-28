@@ -129,13 +129,14 @@ client.on('interactionCreate', async interaction => {
           )
           .setTimestamp();
 
-        await interaction.reply({ embeds: [verifiedEmbed], ephemeral: true });
+        await interaction.reply({ embeds: [verifiedEmbed] });
         break;
 
       case 'restoreall':
-        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && 
+            interaction.guild.ownerId !== interaction.user.id) {
           return await interaction.reply({ 
-            content: 'You need Administrator permission to use this command.', 
+            content: 'You need Administrator permission or be the server owner to use this command.', 
             ephemeral: true 
           });
         }
