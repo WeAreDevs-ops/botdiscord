@@ -18,7 +18,6 @@ dotenv.config();
 
 const token = process.env.DISCORD_TOKEN;
 const clientId = process.env.CLIENT_ID;
-const guildId = process.env.GUILD_ID;
 
 const client = new Client({
   intents: [
@@ -238,9 +237,9 @@ const rest = new REST({ version: '10' }).setToken(token);
 
 (async () => {
   try {
-    console.log('Registering slash commands...');
-    await rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: commands });
-    console.log('Slash commands registered successfully.');
+    console.log('Registering global slash commands...');
+    await rest.put(Routes.applicationCommands(clientId), { body: commands });
+    console.log('Global slash commands registered successfully.');
   } catch (error) {
     console.error('Failed to register commands:', error);
   }
