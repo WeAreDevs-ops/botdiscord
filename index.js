@@ -175,7 +175,7 @@ client.on('interactionCreate', async interaction => {
 
         const verifiedEmbed = new EmbedBuilder()
           .setColor('#00ff00')
-          .setTitle('✅ Verification Complete')
+          .setTitle('Verification Complete')
           .setDescription('You are now verified. If anything happens, we can restore you.')
           .addFields(
             { name: 'User', value: userTag, inline: true },
@@ -210,7 +210,7 @@ client.on('interactionCreate', async interaction => {
 
         const restoreEmbed = new EmbedBuilder()
           .setColor('#0099ff')
-          .setTitle('🔄 Server Restoration')
+          .setTitle('Server Restoration')
           .setDescription(customMessage)
           .setTimestamp();
 
