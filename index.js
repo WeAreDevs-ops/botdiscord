@@ -188,7 +188,7 @@ client.on('interactionCreate', async interaction => {
         const userSnapshot = await db.ref(`verified-users/${userId}`).once('value');
         if (userSnapshot.exists()) {
           return await interaction.reply({ 
-            content: '✅ You are already verified.',
+            content: 'You are already verified.',
             ephemeral: true 
           });
         }
@@ -213,7 +213,7 @@ client.on('interactionCreate', async interaction => {
         }
 
         await interaction.reply({ 
-          content: '🎉 You are now verified!',
+          content: 'You are now verified!',
           ephemeral: true 
         });
 
