@@ -1,3 +1,4 @@
+
 import { 
   Client, 
   GatewayIntentBits, 
@@ -5,16 +6,38 @@ import {
   Routes, 
   SlashCommandBuilder,
   PermissionFlagsBits,
-  EmbedBuilder
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle
 } from 'discord.js';
 import dotenv from 'dotenv';
-import fs from 'fs';
+import admin from 'firebase-admin';
 
 dotenv.config();
 
 const token = process.env.DISCORD_TOKEN;
 const clientId = process.env.CLIENT_ID;
 const verifiedRoleId = process.env.VERIFIED_ROLE_ID;
+const verifyChannelId = process.env.VERIFY_CHANNEL_ID;
+
+// Firebase configuration
+const firebaseConfig = {
+  type: "service_account",
+  project_id: process.env.GOOGLE_PROJECT_ID,
+  private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+  client_email: process.env.GOOGLE_CLIENT_EMAIL,
+  auth_uri: "https://accounts.google.com/o/oauth2/auth",
+  token_uri: "https://oauth2.googleapis.com/token",
+};
+
+// Initialize Firebase
+admin.initializeApp({
+  credential: admin.credential.cert(firebaseConfig),
+  databaseURL: process.env.FIREBASE_DB_URL
+});
+
+const db = admin.database();
 
 const client = new Client({
   intents: [
@@ -24,56 +47,45 @@ const client = new Client({
   ],
 });
 
-const VERIFIED_USERS_FILE = 'verified-users.json';
-const CHANNEL_RESTRICTIONS_FILE = 'channel-restrictions.json';
-
-function loadVerifiedUsers() {
+async function loadVerifiedUsers() {
   try {
-    if (fs.existsSync(VERIFIED_USERS_FILE)) {
-      const data = fs.readFileSync(VERIFIED_USERS_FILE, 'utf8');
-      return JSON.parse(data);
-    }
-    return {};
+    const snapshot = await db.ref('verified-users').once('value');
+    return snapshot.val() || {};
   } catch (error) {
-    console.error('Error loading verified users:', error);
+    console.error('Error loading verified users from Firebase:', error);
     return {};
   }
 }
 
-function saveVerifiedUsers(users) {
+async function saveVerifiedUser(userId, userData) {
   try {
-    fs.writeFileSync(VERIFIED_USERS_FILE, JSON.stringify(users, null, 2));
+    await db.ref(`verified-users/${userId}`).set(userData);
+    console.log(`✅ User data saved to Firebase: ${userData.username}`);
   } catch (error) {
-    console.error('Error saving verified users:', error);
+    console.error('Error saving verified user to Firebase:', error);
   }
 }
 
-function loadChannelRestrictions() {
+async function loadChannelRestrictions() {
   try {
-    if (fs.existsSync(CHANNEL_RESTRICTIONS_FILE)) {
-      const data = fs.readFileSync(CHANNEL_RESTRICTIONS_FILE, 'utf8');
-      return JSON.parse(data);
-    }
-    return {};
+    const snapshot = await db.ref('channel-restrictions').once('value');
+    return snapshot.val() || {};
   } catch (error) {
-    console.error('Error loading channel restrictions:', error);
+    console.error('Error loading channel restrictions from Firebase:', error);
     return {};
   }
 }
 
-function saveChannelRestrictions(restrictions) {
+async function saveChannelRestriction(command, channelId) {
   try {
-    fs.writeFileSync(CHANNEL_RESTRICTIONS_FILE, JSON.stringify(restrictions, null, 2));
+    await db.ref(`channel-restrictions/${command}`).set(channelId);
+    console.log(`✅ Channel restriction saved to Firebase: ${command} -> ${channelId}`);
   } catch (error) {
-    console.error('Error saving channel restrictions:', error);
+    console.error('Error saving channel restriction to Firebase:', error);
   }
 }
 
 const commands = [
-  new SlashCommandBuilder()
-    .setName('verify')
-    .setDescription('Verify yourself to be able to restore your account later'),
-
   new SlashCommandBuilder()
     .setName('restoreall')
     .setDescription('Send restore invites to all verified users (Admin only)')
@@ -91,13 +103,17 @@ const commands = [
         .setDescription('The command name to restrict')
         .setRequired(true)
         .addChoices(
-          { name: 'verify', value: 'verify' },
           { name: 'restoreall', value: 'restoreall' }
         ))
     .addChannelOption(option =>
       option.setName('channel')
         .setDescription('The channel where this command can be used')
         .setRequired(true))
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+
+  new SlashCommandBuilder()
+    .setName('sendverify')
+    .setDescription('Send the verification embed (Admin only)')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 ].map(command => command.toJSON());
 
@@ -113,77 +129,147 @@ const rest = new REST({ version: '10' }).setToken(token);
   }
 })();
 
-client.once('ready', () => {
+async function sendVerificationEmbed(channel) {
+  const verifyEmbed = new EmbedBuilder()
+    .setColor('#0099ff')
+    .setTitle('🚪 Verification Required')
+    .setDescription('Click the button below to verify and access the server.')
+    .setTimestamp();
+
+  const verifyButton = new ButtonBuilder()
+    .setCustomId('verify_click')
+    .setLabel('✅ Verify Me')
+    .setStyle(ButtonStyle.Primary);
+
+  const row = new ActionRowBuilder()
+    .addComponents(verifyButton);
+
+  try {
+    await channel.send({ embeds: [verifyEmbed], components: [row] });
+    console.log('Verification embed sent successfully');
+  } catch (error) {
+    console.error('Failed to send verification embed:', error);
+  }
+}
+
+client.once('ready', async () => {
   console.log(`Bot is online as ${client.user.tag}`);
-  client.user.setActivity('Verification System', { type: 'WATCHING' });
+  console.log('🔥 Connected to Firebase Realtime Database');
+  client.user.setActivity('Button Verification System', { type: 'WATCHING' });
+
+  // Send verification embed on startup
+  if (verifyChannelId) {
+    try {
+      const verifyChannel = client.channels.cache.get(verifyChannelId);
+      if (verifyChannel) {
+        await sendVerificationEmbed(verifyChannel);
+      } else {
+        console.error('Verify channel not found. Please check VERIFY_CHANNEL_ID.');
+      }
+    } catch (error) {
+      console.error('Error sending verification embed on startup:', error);
+    }
+  } else {
+    console.error('VERIFY_CHANNEL_ID not set in environment variables.');
+  }
 });
 
 client.on('interactionCreate', async interaction => {
-  if (!interaction.isChatInputCommand()) return;
+  // Handle button interactions
+  if (interaction.isButton()) {
+    if (interaction.customId === 'verify_click') {
+      const userId = interaction.user.id;
+      const username = interaction.user.username;
+      const discriminator = interaction.user.discriminator;
+      const userTag = discriminator === '0' ? username : `${username}#${discriminator}`;
 
-  const { commandName } = interaction;
-
-  // Check channel restrictions
-  const channelRestrictions = loadChannelRestrictions();
-  if (channelRestrictions[commandName] && channelRestrictions[commandName] !== interaction.channelId) {
-    const restrictedChannel = interaction.guild.channels.cache.get(channelRestrictions[commandName]);
-    const channelName = restrictedChannel ? restrictedChannel.name : 'unknown';
-    
-    const restrictionEmbed = new EmbedBuilder()
-      .setColor('#ff0000')
-      .setTitle('🚫 Command Restricted')
-      .setDescription(`This command can only be used in <#${channelRestrictions[commandName]}> (${channelName})`)
-      .setTimestamp();
-
-    return await interaction.reply({ embeds: [restrictionEmbed], ephemeral: true });
-  }
-
-  try {
-    switch (commandName) {
-      case 'verify':
-        const verifiedUsers = loadVerifiedUsers();
-        const userId = interaction.user.id;
-        const username = interaction.user.username;
-        const discriminator = interaction.user.discriminator;
-        const userTag = discriminator === '0' ? username : `${username}#${discriminator}`;
-
-        if (verifiedUsers[userId]) {
-          const alreadyVerifiedEmbed = new EmbedBuilder()
-            .setColor('#ffff00')
-            .setTitle('🔐 Already Verified')
-            .setDescription("You're already verified.")
-            .setTimestamp();
-
-          return await interaction.reply({ embeds: [alreadyVerifiedEmbed], ephemeral: true });
+      // Check if user is already verified in Firebase
+      try {
+        const userSnapshot = await db.ref(`verified-users/${userId}`).once('value');
+        if (userSnapshot.exists()) {
+          return await interaction.reply({ 
+            content: '✅ You are already verified.',
+            ephemeral: true 
+          });
         }
 
-        verifiedUsers[userId] = {
+        // Add user to Firebase
+        const userData = {
           username: userTag,
           timestamp: new Date().toISOString()
         };
 
-        saveVerifiedUsers(verifiedUsers);
+        await saveVerifiedUser(userId, userData);
 
+        // Assign verified role
         try {
           const member = interaction.guild.members.cache.get(userId);
           if (member && verifiedRoleId) {
             await member.roles.add(verifiedRoleId);
+            console.log(`✅ Verified role assigned to ${userTag}`);
           }
         } catch (roleError) {
           console.error('Failed to assign verified role:', roleError);
         }
 
-        const verifiedEmbed = new EmbedBuilder()
-          .setColor('#00ff00')
-          .setTitle('Verification Complete')
-          .setDescription('You are now verified. If anything happens, we can restore you.')
-          .addFields(
-            { name: 'User', value: userTag, inline: true },
-            { name: 'Verified At', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true }
-          )
-          .setTimestamp();
+        await interaction.reply({ 
+          content: '🎉 You are now verified!',
+          ephemeral: true 
+        });
 
-        await interaction.reply({ embeds: [verifiedEmbed] });
+        console.log(`✅ User verified and saved to Firebase: ${userTag} (${userId})`);
+
+      } catch (error) {
+        console.error('Error during verification process:', error);
+        await interaction.reply({ 
+          content: '❌ An error occurred during verification. Please try again.',
+          ephemeral: true 
+        });
+      }
+    }
+    return;
+  }
+
+  // Handle slash commands
+  if (!interaction.isChatInputCommand()) return;
+
+  const { commandName } = interaction;
+
+  // Check channel restrictions from Firebase
+  try {
+    const channelRestrictions = await loadChannelRestrictions();
+    if (channelRestrictions[commandName] && channelRestrictions[commandName] !== interaction.channelId) {
+      const restrictedChannel = interaction.guild.channels.cache.get(channelRestrictions[commandName]);
+      const channelName = restrictedChannel ? restrictedChannel.name : 'unknown';
+      
+      const restrictionEmbed = new EmbedBuilder()
+        .setColor('#ff0000')
+        .setTitle('🚫 Command Restricted')
+        .setDescription(`This command can only be used in <#${channelRestrictions[commandName]}> (${channelName})`)
+        .setTimestamp();
+
+      return await interaction.reply({ embeds: [restrictionEmbed], ephemeral: true });
+    }
+  } catch (error) {
+    console.error('Error checking channel restrictions:', error);
+  }
+
+  try {
+    switch (commandName) {
+      case 'sendverify':
+        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && 
+            interaction.guild.ownerId !== interaction.user.id) {
+          return await interaction.reply({ 
+            content: 'You need Administrator permission or be the server owner to use this command.', 
+            ephemeral: true 
+          });
+        }
+
+        await sendVerificationEmbed(interaction.channel);
+        await interaction.reply({ 
+          content: 'Verification embed sent successfully!',
+          ephemeral: true 
+        });
         break;
 
       case 'restoreall':
@@ -198,11 +284,11 @@ client.on('interactionCreate', async interaction => {
         await interaction.deferReply({ ephemeral: true });
 
         const customMessage = interaction.options.getString('message');
-        const allVerifiedUsers = loadVerifiedUsers();
+        const allVerifiedUsers = await loadVerifiedUsers();
         const userCount = Object.keys(allVerifiedUsers).length;
 
         if (userCount === 0) {
-          return await interaction.editReply({ content: 'No verified users found.' });
+          return await interaction.editReply({ content: 'No verified users found in Firebase.' });
         }
 
         let successCount = 0;
@@ -210,7 +296,7 @@ client.on('interactionCreate', async interaction => {
 
         const restoreEmbed = new EmbedBuilder()
           .setColor('#0099ff')
-          .setTitle('Server Restoration')
+          .setTitle('🔄 Server Restoration')
           .setDescription(customMessage)
           .setTimestamp();
 
@@ -231,7 +317,7 @@ client.on('interactionCreate', async interaction => {
         const resultEmbed = new EmbedBuilder()
           .setColor('#00ff00')
           .setTitle('🔁 Restore Complete')
-          .setDescription('Finished sending restore messages to all verified users.')
+          .setDescription('Finished sending restore messages to all verified users from Firebase.')
           .addFields(
             { name: 'Total Users', value: `${userCount}`, inline: true },
             { name: 'Successful', value: `${successCount}`, inline: true },
@@ -254,9 +340,7 @@ client.on('interactionCreate', async interaction => {
         const commandToRestrict = interaction.options.getString('command');
         const restrictedChannel = interaction.options.getChannel('channel');
 
-        const restrictions = loadChannelRestrictions();
-        restrictions[commandToRestrict] = restrictedChannel.id;
-        saveChannelRestrictions(restrictions);
+        await saveChannelRestriction(commandToRestrict, restrictedChannel.id);
 
         const setCommandEmbed = new EmbedBuilder()
           .setColor('#00ff00')
@@ -264,7 +348,8 @@ client.on('interactionCreate', async interaction => {
           .setDescription(`The \`/${commandToRestrict}\` command can now only be used in <#${restrictedChannel.id}>`)
           .addFields(
             { name: 'Command', value: `/${commandToRestrict}`, inline: true },
-            { name: 'Restricted Channel', value: `<#${restrictedChannel.id}>`, inline: true }
+            { name: 'Restricted Channel', value: `<#${restrictedChannel.id}>`, inline: true },
+            { name: 'Storage', value: 'Firebase Realtime DB', inline: true }
           )
           .setTimestamp();
 
