@@ -52,7 +52,6 @@ async function loadVerifiedUsers() {
     const snapshot = await db.ref('verified-users').once('value');
     return snapshot.val() || {};
   } catch (error) {
-    console.error('Error loading verified users from Firebase:', error);
     return {};
   }
 }
@@ -60,9 +59,8 @@ async function loadVerifiedUsers() {
 async function saveVerifiedUser(userId, userData) {
   try {
     await db.ref(`verified-users/${userId}`).set(userData);
-    console.log(`✅ User data saved to Firebase: ${userData.username}`);
   } catch (error) {
-    console.error('Error saving verified user to Firebase:', error);
+    // Error saving user data
   }
 }
 
@@ -71,7 +69,6 @@ async function loadChannelRestrictions() {
     const snapshot = await db.ref('channel-restrictions').once('value');
     return snapshot.val() || {};
   } catch (error) {
-    console.error('Error loading channel restrictions from Firebase:', error);
     return {};
   }
 }
@@ -79,53 +76,54 @@ async function loadChannelRestrictions() {
 async function saveChannelRestriction(command, channelId) {
   try {
     await db.ref(`channel-restrictions/${command}`).set(channelId);
-    console.log(`✅ Channel restriction saved to Firebase: ${command} -> ${channelId}`);
   } catch (error) {
-    console.error('Error saving channel restriction to Firebase:', error);
+    // Error saving channel restriction
   }
 }
 
 const commands = [
   new SlashCommandBuilder()
     .setName('restoreall')
-    .setDescription('Send restore invites to all verified users (Admin only)')
+    .setDescription('Send restore invites to all verified users (Owner/Admin only)')
     .addStringOption(option =>
       option.setName('message')
         .setDescription('Custom message with invite link to send to verified users')
         .setRequired(true))
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    .setDefaultMemberPermissions(0)
+    .setDMPermission(false),
 
   new SlashCommandBuilder()
     .setName('setcommand')
-    .setDescription('Restrict a command to a specific channel (Admin only)')
+    .setDescription('Restrict a command to a specific channel (Owner/Admin only)')
     .addStringOption(option =>
       option.setName('command')
         .setDescription('The command name to restrict')
         .setRequired(true)
         .addChoices(
-          { name: 'restoreall', value: 'restoreall' }
+          { name: 'restoreall', value: 'restoreall' },
+          { name: 'sendverify', value: 'sendverify' }
         ))
     .addChannelOption(option =>
       option.setName('channel')
         .setDescription('The channel where this command can be used')
         .setRequired(true))
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    .setDefaultMemberPermissions(0)
+    .setDMPermission(false),
 
   new SlashCommandBuilder()
     .setName('sendverify')
-    .setDescription('Send the verification embed (Admin only)')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .setDescription('Send the verification embed (Owner/Admin only)')
+    .setDefaultMemberPermissions(0)
+    .setDMPermission(false)
 ].map(command => command.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(token);
 
 (async () => {
   try {
-    console.log('Registering global slash commands...');
     await rest.put(Routes.applicationCommands(clientId), { body: commands });
-    console.log('Global slash commands registered successfully.');
   } catch (error) {
-    console.error('Failed to register commands:', error);
+    // Failed to register commands
   }
 })();
 
@@ -139,22 +137,19 @@ async function sendVerificationEmbed(channel) {
   const verifyButton = new ButtonBuilder()
     .setCustomId('verify_click')
     .setLabel('Verify Here')
-    .setStyle(ButtonStyle.Primary);
+    .setStyle(ButtonStyle.Danger);
 
   const row = new ActionRowBuilder()
     .addComponents(verifyButton);
 
   try {
     await channel.send({ embeds: [verifyEmbed], components: [row] });
-    console.log('Verification embed sent successfully');
   } catch (error) {
-    console.error('Failed to send verification embed:', error);
+    // Failed to send verification embed
   }
 }
 
 client.once('ready', async () => {
-  console.log(`Bot is online as ${client.user.tag}`);
-  console.log('🔥 Connected to Firebase Realtime Database');
   client.user.setActivity('Button Verification System', { type: 'WATCHING' });
 
   // Send verification embed on startup
@@ -163,14 +158,10 @@ client.once('ready', async () => {
       const verifyChannel = client.channels.cache.get(verifyChannelId);
       if (verifyChannel) {
         await sendVerificationEmbed(verifyChannel);
-      } else {
-        console.error('Verify channel not found. Please check VERIFY_CHANNEL_ID.');
       }
     } catch (error) {
-      console.error('Error sending verification embed on startup:', error);
+      // Error sending verification embed on startup
     }
-  } else {
-    console.error('VERIFY_CHANNEL_ID not set in environment variables.');
   }
 });
 
@@ -206,10 +197,9 @@ client.on('interactionCreate', async interaction => {
           const member = interaction.guild.members.cache.get(userId);
           if (member && verifiedRoleId) {
             await member.roles.add(verifiedRoleId);
-            console.log(`✅ Verified role assigned to ${userTag}`);
           }
         } catch (roleError) {
-          console.error('Failed to assign verified role:', roleError);
+          // Failed to assign verified role
         }
 
         await interaction.reply({ 
@@ -217,10 +207,7 @@ client.on('interactionCreate', async interaction => {
           ephemeral: true 
         });
 
-        console.log(`✅ User verified and saved to Firebase: ${userTag} (${userId})`);
-
       } catch (error) {
-        console.error('Error during verification process:', error);
         await interaction.reply({ 
           content: '❌ An error occurred during verification. Please try again.',
           ephemeral: true 
@@ -251,7 +238,7 @@ client.on('interactionCreate', async interaction => {
       return await interaction.reply({ embeds: [restrictionEmbed], ephemeral: true });
     }
   } catch (error) {
-    console.error('Error checking channel restrictions:', error);
+    // Error checking channel restrictions
   }
 
   try {
@@ -304,10 +291,8 @@ client.on('interactionCreate', async interaction => {
           try {
             const user = await client.users.fetch(userId);
             await user.send({ embeds: [restoreEmbed] });
-            console.log(`✅ Successfully sent restore message to ${userData.username} (${userId})`);
             successCount++;
           } catch (error) {
-            console.log(`❌ Failed to send restore message to ${userData.username} (${userId}): ${error.message}`);
             failCount++;
           }
 
@@ -357,7 +342,6 @@ client.on('interactionCreate', async interaction => {
         break;
     }
   } catch (error) {
-    console.error('Command error:', error);
     if (!interaction.replied && !interaction.deferred) {
       await interaction.reply({ content: 'An error occurred while executing the command.', ephemeral: true });
     } else if (interaction.deferred) {
