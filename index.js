@@ -232,7 +232,7 @@ async function endGiveaway(giveawayId) {
       }
 
       // Check role requirement
-      if (giveawayData.requiredRoleId && !member.roles.cache.has(giveawayData.requiredRoleId)) {
+      if (giveawayData.requiredRoleId && giveawayData.requiredRoleId !== null && !member.roles.cache.has(giveawayData.requiredRoleId)) {
         console.log(`User ${member.user.username} doesn't have required role`);
         continue;
       }
@@ -725,24 +725,40 @@ client.on('interactionCreate', async interaction => {
           description,
           emoji,
           winners,
-          requirements,
-          requiredRoleId: requiredRole?.id,
+          requirements: requirements || null,
+          requiredRoleId: requiredRole?.id || null,
           endTime: endTime.getTime(),
           createdBy: interaction.user.id,
           createdAt: new Date().toISOString(),
           active: true
         };
 
-        await saveGiveaway(giveawayId, giveawayData);
-        console.log(`Created giveaway ${giveawayId}, ends at: ${endTime.toISOString()}`);
+        try {
+          await saveGiveaway(giveawayId, giveawayData);
+          console.log(`Created giveaway ${giveawayId}, ends at: ${endTime.toISOString()}`);
 
-        // Don't rely on setTimeout for persistence across restarts
-        // The checkExpiredGiveaways function will handle ending expired giveaways
+          // Don't rely on setTimeout for persistence across restarts
+          // The checkExpiredGiveaways function will handle ending expired giveaways
 
-        await interaction.reply({ 
-          content: `✅ Giveaway created successfully! ID: ${giveawayId}`,
-          ephemeral: true 
-        });
+          await interaction.reply({ 
+            content: `✅ Giveaway created successfully! ID: ${giveawayId}`,
+            ephemeral: true 
+          });
+        } catch (saveError) {
+          console.error(`Failed to save giveaway ${giveawayId}:`, saveError);
+          
+          // Try to delete the message since giveaway wasn't saved
+          try {
+            await giveawayMessage.delete();
+          } catch (deleteError) {
+            console.error('Failed to delete giveaway message:', deleteError);
+          }
+          
+          await interaction.reply({ 
+            content: `❌ Failed to create giveaway. Please try again.`,
+            ephemeral: true 
+          });
+        }
         break;
 
       case 'endgiveaway':
