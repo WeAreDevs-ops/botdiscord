@@ -125,20 +125,59 @@ function parseDuration(durationStr) {
 
 async function endGiveaway(giveawayId) {
   try {
+    console.log(`Attempting to end giveaway: ${giveawayId}`);
+    
     const giveawayData = await loadGiveaway(giveawayId);
-    if (!giveawayData || !giveawayData.active) return;
+    if (!giveawayData) {
+      console.log(`No giveaway data found for ID: ${giveawayId}`);
+      return;
+    }
+    
+    if (!giveawayData.active) {
+      console.log(`Giveaway ${giveawayId} is already inactive`);
+      return;
+    }
 
     const guild = client.guilds.cache.get(giveawayData.guildId);
-    if (!guild) return;
+    if (!guild) {
+      console.log(`Guild not found: ${giveawayData.guildId}`);
+      return;
+    }
 
     const channel = guild.channels.cache.get(giveawayData.channelId);
-    if (!channel) return;
+    if (!channel) {
+      console.log(`Channel not found: ${giveawayData.channelId}`);
+      return;
+    }
 
-    const message = await channel.messages.fetch(giveawayData.messageId);
-    if (!message) return;
+    let message;
+    try {
+      message = await channel.messages.fetch(giveawayData.messageId);
+    } catch (error) {
+      console.log(`Failed to fetch message: ${giveawayData.messageId}`);
+      return;
+    }
 
-    const reaction = message.reactions.cache.find(r => r.emoji.name === giveawayData.emoji);
-    if (!reaction) return;
+    const reaction = message.reactions.cache.find(r => {
+      // Handle both unicode and custom emojis
+      return r.emoji.name === giveawayData.emoji || r.emoji.toString() === giveawayData.emoji;
+    });
+    
+    if (!reaction) {
+      console.log(`No reaction found for emoji: ${giveawayData.emoji}`);
+      // Still end the giveaway even if no reactions
+      const noReactionEmbed = new EmbedBuilder()
+        .setColor('#FF0000')
+        .setTitle('🎉 Giveaway Ended')
+        .setDescription(`**${giveawayData.title}**\n\nNo participants found!`)
+        .setTimestamp();
+
+      await channel.send({ embeds: [noReactionEmbed] });
+      
+      // Mark as inactive
+      await db.ref(`giveaways/${giveawayId}/active`).set(false);
+      return;
+    }
 
     const users = await reaction.users.fetch();
     const validParticipants = [];
@@ -146,8 +185,13 @@ async function endGiveaway(giveawayId) {
     for (const [userId, user] of users) {
       if (user.bot) continue;
 
-      const member = guild.members.cache.get(userId);
-      if (!member) continue;
+      let member;
+      try {
+        member = await guild.members.fetch(userId);
+      } catch (error) {
+        console.log(`Failed to fetch member: ${userId}`);
+        continue;
+      }
 
       // Check role requirement
       if (giveawayData.requiredRoleId && !member.roles.cache.has(giveawayData.requiredRoleId)) {
@@ -156,6 +200,8 @@ async function endGiveaway(giveawayId) {
 
       validParticipants.push(member);
     }
+
+    console.log(`Found ${validParticipants.length} valid participants`);
 
     let winners = [];
     if (validParticipants.length === 0) {
@@ -182,6 +228,7 @@ async function endGiveaway(giveawayId) {
         .setTimestamp();
 
       await channel.send({ embeds: [winnerEmbed] });
+      console.log(`Announced ${winners.length} winner(s)`);
 
       // Try to DM winners
       for (const winner of winners) {
@@ -194,16 +241,18 @@ async function endGiveaway(giveawayId) {
 
           await winner.send({ embeds: [dmEmbed] });
         } catch (error) {
-          // Failed to DM winner
+          console.log(`Failed to DM winner ${winner.id}`);
         }
       }
     }
 
     // Update original message
+    const winnerText = winners.length > 0 ? `\n\n🏆 **Winner(s):** ${winners.map(w => `<@${w.id}>`).join(', ')}` : '\n\n❌ **No winners**';
+    
     const endedEmbed = new EmbedBuilder()
       .setColor('#808080')
       .setTitle(`🎉 ${giveawayData.title} [ENDED]`)
-      .setDescription(giveawayData.description + '\n\n**This giveaway has ended.**')
+      .setDescription(giveawayData.description + winnerText + '\n\n**This giveaway has ended.**')
       .setFooter({ text: `Giveaway ID: ${giveawayId} | Ended` })
       .setTimestamp();
 
@@ -211,9 +260,10 @@ async function endGiveaway(giveawayId) {
 
     // Mark as inactive in Firebase
     await db.ref(`giveaways/${giveawayId}/active`).set(false);
+    console.log(`Successfully ended giveaway: ${giveawayId}`);
 
   } catch (error) {
-    // Error ending giveaway
+    console.error(`Error ending giveaway ${giveawayId}:`, error);
   }
 }
 
@@ -285,6 +335,16 @@ const commands = [
         .setDescription('Required role to enter (optional)')
         .setRequired(false))
     .setDefaultMemberPermissions(0)
+    .setDMPermission(false),
+
+  new SlashCommandBuilder()
+    .setName('endgiveaway')
+    .setDescription('Manually end a giveaway (Owner/Admin only)')
+    .addStringOption(option =>
+      option.setName('giveaway_id')
+        .setDescription('The giveaway ID to end')
+        .setRequired(true))
+    .setDefaultMemberPermissions(0)
     .setDMPermission(false)
 ].map(command => command.toJSON());
 
@@ -322,18 +382,26 @@ async function sendVerificationEmbed(channel) {
 
 async function checkExpiredGiveaways() {
   try {
+    console.log('Checking for expired giveaways...');
     const snapshot = await db.ref('giveaways').once('value');
     const giveaways = snapshot.val() || {};
     
     const now = Date.now();
+    let expiredCount = 0;
     
     for (const [giveawayId, giveawayData] of Object.entries(giveaways)) {
       if (giveawayData.active && giveawayData.endTime <= now) {
+        console.log(`Found expired giveaway: ${giveawayId}`);
         await endGiveaway(giveawayId);
+        expiredCount++;
       }
     }
+    
+    if (expiredCount > 0) {
+      console.log(`Processed ${expiredCount} expired giveaway(s)`);
+    }
   } catch (error) {
-    // Error checking expired giveaways
+    console.error('Error checking expired giveaways:', error);
   }
 }
 
@@ -611,6 +679,42 @@ client.on('interactionCreate', async interaction => {
         await interaction.reply({ 
           content: `✅ Giveaway created successfully! ID: ${giveawayId}`,
           ephemeral: true 
+        });
+        break;
+
+      case 'endgiveaway':
+        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && 
+            interaction.guild.ownerId !== interaction.user.id) {
+          return await interaction.reply({ 
+            content: 'You need Administrator permission or be the server owner to use this command.', 
+            ephemeral: true 
+          });
+        }
+
+        const giveawayIdToEnd = interaction.options.getString('giveaway_id');
+        
+        // Check if giveaway exists
+        const giveawayToEnd = await loadGiveaway(giveawayIdToEnd);
+        if (!giveawayToEnd) {
+          return await interaction.reply({ 
+            content: `❌ Giveaway with ID \`${giveawayIdToEnd}\` not found.`, 
+            ephemeral: true 
+          });
+        }
+
+        if (!giveawayToEnd.active) {
+          return await interaction.reply({ 
+            content: `❌ Giveaway \`${giveawayIdToEnd}\` has already ended.`, 
+            ephemeral: true 
+          });
+        }
+
+        await interaction.deferReply({ ephemeral: true });
+        
+        await endGiveaway(giveawayIdToEnd);
+        
+        await interaction.editReply({ 
+          content: `✅ Successfully ended giveaway: \`${giveawayIdToEnd}\`` 
         });
         break;
     }
