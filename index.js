@@ -131,14 +131,14 @@ const rest = new REST({ version: '10' }).setToken(token);
 
 async function sendVerificationEmbed(channel) {
   const verifyEmbed = new EmbedBuilder()
-    .setColor('#0099ff')
-    .setTitle('🚪 Verification Required')
+    .setColor('#FF0000')
+    .setTitle('Verification Required')
     .setDescription('Click the button below to verify and access the server.')
     .setTimestamp();
 
   const verifyButton = new ButtonBuilder()
     .setCustomId('verify_click')
-    .setLabel('✅ Verify Me')
+    .setLabel('Verify Here')
     .setStyle(ButtonStyle.Primary);
 
   const row = new ActionRowBuilder()
