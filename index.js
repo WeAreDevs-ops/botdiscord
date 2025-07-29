@@ -84,16 +84,20 @@ async function saveChannelRestriction(command, channelId) {
 async function saveGiveaway(giveawayId, giveawayData) {
   try {
     await db.ref(`giveaways/${giveawayId}`).set(giveawayData);
+    console.log(`Saved giveaway to Firebase: ${giveawayId}`);
   } catch (error) {
-    // Error saving giveaway
+    console.error(`Error saving giveaway ${giveawayId}:`, error);
   }
 }
 
 async function loadGiveaway(giveawayId) {
   try {
     const snapshot = await db.ref(`giveaways/${giveawayId}`).once('value');
-    return snapshot.val();
+    const data = snapshot.val();
+    console.log(`Loaded giveaway ${giveawayId}:`, data ? 'Found' : 'Not found');
+    return data;
   } catch (error) {
+    console.error(`Error loading giveaway ${giveawayId}:`, error);
     return null;
   }
 }
@@ -141,12 +145,16 @@ async function endGiveaway(giveawayId) {
     const guild = client.guilds.cache.get(giveawayData.guildId);
     if (!guild) {
       console.log(`Guild not found: ${giveawayData.guildId}`);
+      // Mark as inactive even if guild not found
+      await db.ref(`giveaways/${giveawayId}/active`).set(false);
       return;
     }
 
     const channel = guild.channels.cache.get(giveawayData.channelId);
     if (!channel) {
       console.log(`Channel not found: ${giveawayData.channelId}`);
+      // Mark as inactive even if channel not found
+      await db.ref(`giveaways/${giveawayId}/active`).set(false);
       return;
     }
 
@@ -155,12 +163,29 @@ async function endGiveaway(giveawayId) {
       message = await channel.messages.fetch(giveawayData.messageId);
     } catch (error) {
       console.log(`Failed to fetch message: ${giveawayData.messageId}`);
+      // Try to send a fallback message and mark as inactive
+      try {
+        const fallbackEmbed = new EmbedBuilder()
+          .setColor('#FF0000')
+          .setTitle('🎉 Giveaway Ended')
+          .setDescription(`**${giveawayData.title}**\n\nOriginal message not found. Giveaway has ended.`)
+          .setFooter({ text: `Giveaway ID: ${giveawayId}` })
+          .setTimestamp();
+
+        await channel.send({ embeds: [fallbackEmbed] });
+      } catch (sendError) {
+        console.log(`Failed to send fallback message: ${sendError}`);
+      }
+      await db.ref(`giveaways/${giveawayId}/active`).set(false);
       return;
     }
 
     const reaction = message.reactions.cache.find(r => {
       // Handle both unicode and custom emojis
-      return r.emoji.name === giveawayData.emoji || r.emoji.toString() === giveawayData.emoji;
+      const emojiMatch = r.emoji.name === giveawayData.emoji || 
+                        r.emoji.toString() === giveawayData.emoji ||
+                        r.emoji.id === giveawayData.emoji;
+      return emojiMatch;
     });
     
     if (!reaction) {
@@ -170,20 +195,33 @@ async function endGiveaway(giveawayId) {
         .setColor('#FF0000')
         .setTitle('🎉 Giveaway Ended')
         .setDescription(`**${giveawayData.title}**\n\nNo participants found!`)
+        .setFooter({ text: `Giveaway ID: ${giveawayId}` })
         .setTimestamp();
 
       await channel.send({ embeds: [noReactionEmbed] });
       
-      // Mark as inactive
+      // Update original message
+      const endedEmbed = new EmbedBuilder()
+        .setColor('#808080')
+        .setTitle(`🎉 ${giveawayData.title} [ENDED]`)
+        .setDescription(giveawayData.description + '\n\n❌ **No participants**\n\n**This giveaway has ended.**')
+        .setFooter({ text: `Giveaway ID: ${giveawayId} | Ended` })
+        .setTimestamp();
+
+      await message.edit({ embeds: [endedEmbed] });
       await db.ref(`giveaways/${giveawayId}/active`).set(false);
       return;
     }
 
+    console.log(`Found reaction with ${reaction.count} users`);
     const users = await reaction.users.fetch();
     const validParticipants = [];
 
     for (const [userId, user] of users) {
-      if (user.bot) continue;
+      if (user.bot) {
+        console.log(`Skipping bot user: ${user.username}`);
+        continue;
+      }
 
       let member;
       try {
@@ -195,40 +233,53 @@ async function endGiveaway(giveawayId) {
 
       // Check role requirement
       if (giveawayData.requiredRoleId && !member.roles.cache.has(giveawayData.requiredRoleId)) {
+        console.log(`User ${member.user.username} doesn't have required role`);
         continue;
       }
 
       validParticipants.push(member);
+      console.log(`Added valid participant: ${member.user.username}`);
     }
 
-    console.log(`Found ${validParticipants.length} valid participants`);
+    console.log(`Found ${validParticipants.length} valid participants out of ${users.size} total reactions`);
 
     let winners = [];
+    let winnerAnnouncement = '';
+
     if (validParticipants.length === 0) {
       // No valid participants
+      winnerAnnouncement = 'No valid participants found!';
       const noWinnerEmbed = new EmbedBuilder()
         .setColor('#FF0000')
         .setTitle('🎉 Giveaway Ended')
-        .setDescription(`**${giveawayData.title}**\n\nNo valid participants found!`)
+        .setDescription(`**${giveawayData.title}**\n\n❌ **${winnerAnnouncement}**`)
+        .setFooter({ text: `Giveaway ID: ${giveawayId}` })
         .setTimestamp();
 
       await channel.send({ embeds: [noWinnerEmbed] });
     } else {
       // Select winners
       const numWinners = Math.min(giveawayData.winners, validParticipants.length);
-      const shuffled = validParticipants.sort(() => 0.5 - Math.random());
-      winners = shuffled.slice(0, numWinners);
+      
+      // Better random selection
+      for (let i = 0; i < numWinners; i++) {
+        const randomIndex = Math.floor(Math.random() * validParticipants.length);
+        winners.push(validParticipants.splice(randomIndex, 1)[0]);
+      }
 
       const winnersList = winners.map(w => `<@${w.id}>`).join(', ');
+      winnerAnnouncement = `🏆 **Winner(s):** ${winnersList}`;
 
       const winnerEmbed = new EmbedBuilder()
         .setColor('#00FF00')
-        .setTitle('🎉 Giveaway Ended')
-        .setDescription(`**${giveawayData.title}**\n\n🏆 **Winner(s):** ${winnersList}`)
+        .setTitle('🎉 Giveaway Ended - Congratulations!')
+        .setDescription(`**${giveawayData.title}**\n\n${winnerAnnouncement}`)
+        .addFields({ name: 'Total Participants', value: `${validParticipants.length + winners.length}`, inline: true })
+        .setFooter({ text: `Giveaway ID: ${giveawayId}` })
         .setTimestamp();
 
       await channel.send({ embeds: [winnerEmbed] });
-      console.log(`Announced ${winners.length} winner(s)`);
+      console.log(`Announced ${winners.length} winner(s): ${winners.map(w => w.user.username).join(', ')}`);
 
       // Try to DM winners
       for (const winner of winners) {
@@ -236,21 +287,22 @@ async function endGiveaway(giveawayId) {
           const dmEmbed = new EmbedBuilder()
             .setColor('#FFD700')
             .setTitle('🎉 Congratulations!')
-            .setDescription(`You won the giveaway: **${giveawayData.title}** in ${guild.name}!`)
+            .setDescription(`You won the giveaway: **${giveawayData.title}** in ${guild.name}!\n\nPlease contact the server administrators to claim your prize.`)
             .setTimestamp();
 
           await winner.send({ embeds: [dmEmbed] });
+          console.log(`Successfully DMed winner: ${winner.user.username}`);
         } catch (error) {
-          console.log(`Failed to DM winner ${winner.id}`);
+          console.log(`Failed to DM winner ${winner.user.username}: ${error.message}`);
         }
       }
     }
 
-    // Update original message
-    const winnerText = winners.length > 0 ? `\n\n🏆 **Winner(s):** ${winners.map(w => `<@${w.id}>`).join(', ')}` : '\n\n❌ **No winners**';
+    // Update original message with results
+    const winnerText = winners.length > 0 ? `\n\n${winnerAnnouncement}` : `\n\n❌ **${winnerAnnouncement}**`;
     
     const endedEmbed = new EmbedBuilder()
-      .setColor('#808080')
+      .setColor(winners.length > 0 ? '#00FF00' : '#FF0000')
       .setTitle(`🎉 ${giveawayData.title} [ENDED]`)
       .setDescription(giveawayData.description + winnerText + '\n\n**This giveaway has ended.**')
       .setFooter({ text: `Giveaway ID: ${giveawayId} | Ended` })
@@ -258,12 +310,23 @@ async function endGiveaway(giveawayId) {
 
     await message.edit({ embeds: [endedEmbed] });
 
-    // Mark as inactive in Firebase
-    await db.ref(`giveaways/${giveawayId}/active`).set(false);
-    console.log(`Successfully ended giveaway: ${giveawayId}`);
+    // Mark as inactive in Firebase and save winner data
+    await db.ref(`giveaways/${giveawayId}`).update({
+      active: false,
+      endedAt: new Date().toISOString(),
+      winners: winners.map(w => ({ id: w.id, username: w.user.username }))
+    });
+    
+    console.log(`Successfully ended giveaway: ${giveawayId} with ${winners.length} winners`);
 
   } catch (error) {
     console.error(`Error ending giveaway ${giveawayId}:`, error);
+    // Try to mark as inactive even on error
+    try {
+      await db.ref(`giveaways/${giveawayId}/active`).set(false);
+    } catch (dbError) {
+      console.error(`Failed to mark giveaway as inactive: ${dbError}`);
+    }
   }
 }
 
@@ -666,15 +729,15 @@ client.on('interactionCreate', async interaction => {
           requiredRoleId: requiredRole?.id,
           endTime: endTime.getTime(),
           createdBy: interaction.user.id,
+          createdAt: new Date().toISOString(),
           active: true
         };
 
         await saveGiveaway(giveawayId, giveawayData);
+        console.log(`Created giveaway ${giveawayId}, ends at: ${endTime.toISOString()}`);
 
-        // Set timeout to end giveaway
-        setTimeout(async () => {
-          await endGiveaway(giveawayId);
-        }, durationMs);
+        // Don't rely on setTimeout for persistence across restarts
+        // The checkExpiredGiveaways function will handle ending expired giveaways
 
         await interaction.reply({ 
           content: `✅ Giveaway created successfully! ID: ${giveawayId}`,
