@@ -320,8 +320,31 @@ async function sendVerificationEmbed(channel) {
   }
 }
 
+async function checkExpiredGiveaways() {
+  try {
+    const snapshot = await db.ref('giveaways').once('value');
+    const giveaways = snapshot.val() || {};
+    
+    const now = Date.now();
+    
+    for (const [giveawayId, giveawayData] of Object.entries(giveaways)) {
+      if (giveawayData.active && giveawayData.endTime <= now) {
+        await endGiveaway(giveawayId);
+      }
+    }
+  } catch (error) {
+    // Error checking expired giveaways
+  }
+}
+
 client.once('ready', async () => {
   client.user.setActivity('Button Verification System', { type: 'WATCHING' });
+
+  // Check for expired giveaways on startup
+  await checkExpiredGiveaways();
+
+  // Check for expired giveaways every 30 seconds
+  setInterval(checkExpiredGiveaways, 30000);
 
   // Send verification embed on startup
   if (verifyChannelId) {
