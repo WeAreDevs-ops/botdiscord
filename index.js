@@ -701,7 +701,7 @@ client.on('messageCreate', async message => {
       // Create embed with invite information
       const inviteEmbed = new EmbedBuilder()
         .setColor('#0099ff')
-        .setTitle('📨 Your Invite Statistics')
+        .setTitle('Your Invite Statistics')
         .setDescription(`**${username}**, here are your invite details:`)
         .addFields(
           { name: 'Total Invites', value: `**${userInviteCount}**`, inline: true },
@@ -1076,11 +1076,11 @@ client.on('interactionCreate', async interaction => {
           // Create embed with invite information
           const inviteEmbed = new EmbedBuilder()
             .setColor('#0099ff')
-            .setTitle('📨 Your Invite Statistics')
+            .setTitle('Your Invite Statistics')
             .setDescription(`**${username}**, here are your invite details:`)
             .addFields(
-              { name: '🎯 Total Invites', value: `**${userInviteCount}**`, inline: true },
-              { name: '🔗 Active Invite Links', value: `**${inviteDetails.length}**`, inline: true }
+              { name: 'Total Invites', value: `**${userInviteCount}**`, inline: true },
+              { name: 'Active Invite Links', value: `**${inviteDetails.length}**`, inline: true }
             )
             .setThumbnail(interaction.user.displayAvatarURL())
             .setTimestamp()
