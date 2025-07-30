@@ -43,7 +43,9 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.DirectMessages
+    GatewayIntentBits.DirectMessages,
+    GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.GuildMessages
   ],
 });
 
@@ -237,6 +239,31 @@ async function endGiveaway(giveawayId) {
         continue;
       }
 
+      // Check invite requirement
+      if (giveawayData.minInvites && giveawayData.minInvites > 0) {
+        try {
+          const invites = await guild.invites.fetch();
+          let userInviteCount = 0;
+          
+          invites.forEach(invite => {
+            if (invite.inviter && invite.inviter.id === userId) {
+              userInviteCount += invite.uses || 0;
+            }
+          });
+
+          if (userInviteCount < giveawayData.minInvites) {
+            console.log(`User ${member.user.username} has ${userInviteCount} invites, needs ${giveawayData.minInvites}`);
+            continue;
+          }
+
+          console.log(`User ${member.user.username} meets invite requirement with ${userInviteCount} invites`);
+        } catch (inviteError) {
+          console.log(`Failed to check invites for ${member.user.username}: ${inviteError.message}`);
+          // If we can't check invites and it's required, skip this user
+          continue;
+        }
+      }
+
       validParticipants.push(member);
       console.log(`Added valid participant: ${member.user.username}`);
     }
@@ -397,6 +424,10 @@ const commands = [
       option.setName('required_role')
         .setDescription('Required role to enter (optional)')
         .setRequired(false))
+    .addIntegerOption(option =>
+      option.setName('min_invites')
+        .setDescription('Minimum number of invites required to enter (optional)')
+        .setRequired(false))
     .setDefaultMemberPermissions(0)
     .setDMPermission(false),
 
@@ -520,6 +551,113 @@ client.on('guildMemberAdd', async member => {
     }
   } catch (error) {
     console.error(`Error checking verification status for new member ${member.user.username}:`, error);
+  }
+});
+
+client.on('messageReactionAdd', async (reaction, user) => {
+  // Ignore bot reactions
+  if (user.bot) return;
+
+  try {
+    // Check if this is a giveaway message
+    const messageId = reaction.message.id;
+    const guildId = reaction.message.guild?.id;
+    
+    if (!guildId) return;
+
+    // Find the giveaway in Firebase
+    const snapshot = await db.ref('giveaways').once('value');
+    const giveaways = snapshot.val() || {};
+    
+    let giveawayData = null;
+    let giveawayId = null;
+    
+    for (const [id, data] of Object.entries(giveaways)) {
+      if (data.messageId === messageId && data.guildId === guildId && data.active) {
+        giveawayData = data;
+        giveawayId = id;
+        break;
+      }
+    }
+
+    // If this isn't a giveaway message, ignore
+    if (!giveawayData) return;
+
+    // Check if the reaction emoji matches the giveaway emoji
+    const reactionEmoji = reaction.emoji.name || reaction.emoji.toString();
+    const giveawayEmoji = giveawayData.emoji;
+    
+    if (reactionEmoji !== giveawayEmoji && reaction.emoji.toString() !== giveawayEmoji) {
+      return;
+    }
+
+    const guild = reaction.message.guild;
+    const member = await guild.members.fetch(user.id).catch(() => null);
+    
+    if (!member) return;
+
+    let shouldRemoveReaction = false;
+    let errorMessage = '';
+
+    // Check role requirement
+    if (giveawayData.requiredRoleId && !member.roles.cache.has(giveawayData.requiredRoleId)) {
+      shouldRemoveReaction = true;
+      const requiredRole = guild.roles.cache.get(giveawayData.requiredRoleId);
+      errorMessage = `❌ You don't meet the requirements! You need the **${requiredRole?.name || 'required role'}** role to participate in this giveaway.`;
+    }
+
+    // Check invite requirement
+    if (!shouldRemoveReaction && giveawayData.minInvites && giveawayData.minInvites > 0) {
+      try {
+        const invites = await guild.invites.fetch();
+        let userInviteCount = 0;
+        
+        invites.forEach(invite => {
+          if (invite.inviter && invite.inviter.id === user.id) {
+            userInviteCount += invite.uses || 0;
+          }
+        });
+
+        if (userInviteCount < giveawayData.minInvites) {
+          shouldRemoveReaction = true;
+          errorMessage = `❌ You don't meet the requirements! You need at least **${giveawayData.minInvites}** invites to participate in this giveaway. You currently have **${userInviteCount}** invites.`;
+        }
+      } catch (inviteError) {
+        console.log(`Failed to check invites for ${user.username}: ${inviteError.message}`);
+        shouldRemoveReaction = true;
+        errorMessage = `❌ Unable to verify your invite count. Please try again later.`;
+      }
+    }
+
+    // Remove reaction and send error message if requirements not met
+    if (shouldRemoveReaction) {
+      try {
+        await reaction.users.remove(user.id);
+        console.log(`Removed reaction from ${user.username} for giveaway ${giveawayId} - requirements not met`);
+        
+        // Try to send DM with error message
+        try {
+          const errorEmbed = new EmbedBuilder()
+            .setColor('#FF0000')
+            .setTitle('🚫 Giveaway Entry Denied')
+            .setDescription(errorMessage)
+            .addFields({ name: 'Giveaway', value: giveawayData.title, inline: true })
+            .setTimestamp();
+
+          await user.send({ embeds: [errorEmbed] });
+          console.log(`Sent requirements error DM to ${user.username}`);
+        } catch (dmError) {
+          console.log(`Failed to send DM to ${user.username}: ${dmError.message}`);
+        }
+      } catch (removeError) {
+        console.log(`Failed to remove reaction from ${user.username}: ${removeError.message}`);
+      }
+    } else {
+      console.log(`${user.username} successfully entered giveaway ${giveawayId}`);
+    }
+
+  } catch (error) {
+    console.error('Error in messageReactionAdd handler:', error);
   }
 });
 
@@ -715,6 +853,7 @@ client.on('interactionCreate', async interaction => {
         const winners = interaction.options.getInteger('winners') || 1;
         const requirements = interaction.options.getString('requirements');
         const requiredRole = interaction.options.getRole('required_role');
+        const minInvites = interaction.options.getInteger('min_invites');
 
         const durationMs = parseDuration(durationStr);
         if (!durationMs) {
@@ -733,6 +872,9 @@ client.on('interactionCreate', async interaction => {
         }
         if (requiredRole) {
           embedDescription += `\n**Required Role:** ${requiredRole}`;
+        }
+        if (minInvites) {
+          embedDescription += `\n**Minimum Invites Required:** ${minInvites}`;
         }
 
         embedDescription += `\n\n**Winners:** ${winners}`;
@@ -760,6 +902,7 @@ client.on('interactionCreate', async interaction => {
           winners,
           requirements: requirements || null,
           requiredRoleId: requiredRole?.id || null,
+          minInvites: minInvites || null,
           endTime: endTime.getTime(),
           createdBy: interaction.user.id,
           createdAt: new Date().toISOString(),
