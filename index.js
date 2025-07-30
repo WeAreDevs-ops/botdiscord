@@ -501,18 +501,18 @@ client.on('guildMemberAdd', async member => {
         await member.roles.add(verifiedRoleId);
         console.log(`Restored verified role for returning user: ${member.user.username} (${member.id})`);
         
-        // Optional: Send a welcome back message to the verify channel
-        if (verifyChannelId) {
-          const verifyChannel = member.guild.channels.cache.get(verifyChannelId);
-          if (verifyChannel) {
-            const welcomeBackEmbed = new EmbedBuilder()
-              .setColor('#00FF00')
-              .setTitle('Welcome Back!')
-              .setDescription(`${member.user.username} has rejoined and their verified status has been automatically restored.`)
-              .setTimestamp();
-            
-            await verifyChannel.send({ embeds: [welcomeBackEmbed] });
-          }
+        // Send a private welcome back message to the user
+        try {
+          const welcomeBackEmbed = new EmbedBuilder()
+            .setColor('#00FF00')
+            .setTitle('Welcome Back!')
+            .setDescription(`Welcome back to **${member.guild.name}**! Your verified status has been automatically restored.`)
+            .setTimestamp();
+          
+          await member.send({ embeds: [welcomeBackEmbed] });
+          console.log(`Sent welcome back DM to: ${member.user.username}`);
+        } catch (dmError) {
+          console.log(`Failed to send welcome back DM to ${member.user.username}: ${dmError.message}`);
         }
       } catch (roleError) {
         console.error(`Failed to restore verified role for ${member.user.username}:`, roleError);
