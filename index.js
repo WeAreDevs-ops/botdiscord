@@ -170,7 +170,7 @@ async function endGiveaway(giveawayId) {
       try {
         const fallbackEmbed = new EmbedBuilder()
           .setColor('#FF0000')
-          .setTitle('🎉 Giveaway Ended')
+          .setTitle('Giveaway Ended')
           .setDescription(`**${giveawayData.title}**\n\nOriginal message not found. Giveaway has ended.`)
           .setFooter({ text: `Giveaway ID: ${giveawayId}` })
           .setTimestamp();
@@ -196,7 +196,7 @@ async function endGiveaway(giveawayId) {
       // Still end the giveaway even if no reactions
       const noReactionEmbed = new EmbedBuilder()
         .setColor('#FF0000')
-        .setTitle('🎉 Giveaway Ended')
+        .setTitle('Giveaway Ended')
         .setDescription(`**${giveawayData.title}**\n\nNo participants found!`)
         .setFooter({ text: `Giveaway ID: ${giveawayId}` })
         .setTimestamp();
@@ -206,8 +206,8 @@ async function endGiveaway(giveawayId) {
       // Update original message
       const endedEmbed = new EmbedBuilder()
         .setColor('#808080')
-        .setTitle(`🎉 ${giveawayData.title} [ENDED]`)
-        .setDescription(giveawayData.description + '\n\n❌ **No participants**\n\n**This giveaway has ended.**')
+        .setTitle(`${giveawayData.title} [ENDED]`)
+        .setDescription(giveawayData.description + '\n\n **No participants**\n\n**This giveaway has ended.**')
         .setFooter({ text: `Giveaway ID: ${giveawayId} | Ended` })
         .setTimestamp();
 
@@ -279,8 +279,8 @@ async function endGiveaway(giveawayId) {
       winnerAnnouncement = 'No valid participants found!';
       const noWinnerEmbed = new EmbedBuilder()
         .setColor('#FF0000')
-        .setTitle('🎉 Giveaway Ended')
-        .setDescription(`**${giveawayData.title}**\n\n❌ **${winnerAnnouncement}**`)
+        .setTitle('Giveaway Ended')
+        .setDescription(`**${giveawayData.title}**\n\n **${winnerAnnouncement}**`)
         .setFooter({ text: `Giveaway ID: ${giveawayId}` })
         .setTimestamp();
 
@@ -300,7 +300,7 @@ async function endGiveaway(giveawayId) {
 
       const winnerEmbed = new EmbedBuilder()
         .setColor('#00FF00')
-        .setTitle('🎉 Giveaway Ended - Congratulations!')
+        .setTitle('Giveaway Ended - Congratulations!')
         .setDescription(`**${giveawayData.title}**\n\n${winnerAnnouncement}`)
         .addFields({ name: 'Total Participants', value: `${validParticipants.length + winners.length}`, inline: true })
         .setFooter({ text: `Giveaway ID: ${giveawayId}` })
@@ -314,7 +314,7 @@ async function endGiveaway(giveawayId) {
         try {
           const dmEmbed = new EmbedBuilder()
             .setColor('#FFD700')
-            .setTitle('🎉 Congratulations!')
+            .setTitle('Congratulations!')
             .setDescription(`You won the giveaway: **${giveawayData.title}** in ${guild.name}!\n\nPlease contact the server administrators to claim your prize.`)
             .setTimestamp();
 
@@ -331,7 +331,7 @@ async function endGiveaway(giveawayId) {
     
     const endedEmbed = new EmbedBuilder()
       .setColor(winners.length > 0 ? '#00FF00' : '#FF0000')
-      .setTitle(`🎉 ${giveawayData.title} [ENDED]`)
+      .setTitle(`${giveawayData.title} [ENDED]`)
       .setDescription(giveawayData.description + winnerText + '\n\n**This giveaway has ended.**')
       .setFooter({ text: `Giveaway ID: ${giveawayId} | Ended` })
       .setTimestamp();
@@ -609,7 +609,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
     if (giveawayData.requiredRoleId && !member.roles.cache.has(giveawayData.requiredRoleId)) {
       shouldRemoveReaction = true;
       const requiredRole = guild.roles.cache.get(giveawayData.requiredRoleId);
-      errorMessage = `❌ You don't meet the requirements! You need the **${requiredRole?.name || 'required role'}** role to participate in this giveaway.`;
+      errorMessage = `You don't meet the requirements! You need the **${requiredRole?.name || 'required role'}** role to participate in this giveaway.`;
     }
 
     // Check invite requirement
@@ -626,12 +626,12 @@ client.on('messageReactionAdd', async (reaction, user) => {
 
         if (userInviteCount < giveawayData.minInvites) {
           shouldRemoveReaction = true;
-          errorMessage = `❌ You don't meet the requirements! You need at least **${giveawayData.minInvites}** invites to participate in this giveaway. You currently have **${userInviteCount}** invites.`;
+          errorMessage = `You don't meet the requirements! You need at least **${giveawayData.minInvites}** invites to participate in this giveaway. You currently have **${userInviteCount}** invites.`;
         }
       } catch (inviteError) {
         console.log(`Failed to check invites for ${user.username}: ${inviteError.message}`);
         shouldRemoveReaction = true;
-        errorMessage = `❌ Unable to verify your invite count. Please try again later.`;
+        errorMessage = `Unable to verify your invite count. Please try again later.`;
       }
     }
 
@@ -645,7 +645,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
         try {
           const errorEmbed = new EmbedBuilder()
             .setColor('#FF0000')
-            .setTitle('🚫 Giveaway Entry Denied')
+            .setTitle('Giveaway Entry Denied')
             .setDescription(errorMessage)
             .addFields({ name: 'Giveaway', value: giveawayData.title, inline: true })
             .setTimestamp();
@@ -704,8 +704,8 @@ client.on('messageCreate', async message => {
         .setTitle('📨 Your Invite Statistics')
         .setDescription(`**${username}**, here are your invite details:`)
         .addFields(
-          { name: '🎯 Total Invites', value: `**${userInviteCount}**`, inline: true },
-          { name: '🔗 Active Invite Links', value: `**${inviteDetails.length}**`, inline: true }
+          { name: 'Total Invites', value: `**${userInviteCount}**`, inline: true },
+          { name: 'Active Invite Links', value: `**${inviteDetails.length}**`, inline: true }
         )
         .setThumbnail(message.author.displayAvatarURL())
         .setTimestamp()
@@ -853,7 +853,7 @@ client.on('interactionCreate', async interaction => {
 
         const restoreEmbed = new EmbedBuilder()
           .setColor('#0099ff')
-          .setTitle('🔄 Server Restoration')
+          .setTitle('Server Restoration')
           .setDescription(customMessage)
           .setTimestamp();
 
