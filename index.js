@@ -705,39 +705,13 @@ client.on('messageCreate', async message => {
         .setDescription(`**${username}**, here are your invite details:`)
         .addFields(
           { name: '🎯 Total Invites', value: `**${userInviteCount}**`, inline: true },
-          { name: '🔗 Active Invite Links', value: `**${inviteDetails.length}**`, inline: true },
-          { name: '📊 Server Rank', value: 'Coming Soon™', inline: true }
+          { name: '🔗 Active Invite Links', value: `**${inviteDetails.length}**`, inline: true }
         )
         .setThumbnail(message.author.displayAvatarURL())
-        .setTimestamp();
-
-      // Add detailed invite breakdown if user has invites
-      if (inviteDetails.length > 0) {
-        const inviteList = inviteDetails.map(invite => 
-          `**${invite.code}** - ${invite.uses}/${invite.maxUses} uses (#${invite.channel})`
-        ).join('\n');
-
-        // Limit the field value to 1024 characters (Discord's limit)
-        const truncatedList = inviteList.length > 1024 
-          ? inviteList.substring(0, 1021) + '...' 
-          : inviteList;
-
-        inviteEmbed.addFields({ 
-          name: '🔗 Your Invite Links', 
-          value: truncatedList, 
-          inline: false 
+        .setTimestamp()
+        .setFooter({ 
+          text: `Requested by ${username} | Use server invites to grow the community!` 
         });
-      } else {
-        inviteEmbed.addFields({ 
-          name: '🔗 Your Invite Links', 
-          value: 'You haven\'t created any invite links yet.\nUse `/invite` command or right-click a channel → "Invite People" to create one!', 
-          inline: false 
-        });
-      }
-
-      inviteEmbed.setFooter({ 
-        text: `Requested by ${username} | Use server invites to grow the community!` 
-      });
 
       await message.reply({ embeds: [inviteEmbed] });
       console.log(`${username} checked their invite count via prefix command: ${userInviteCount} total invites`);
@@ -1106,39 +1080,13 @@ client.on('interactionCreate', async interaction => {
             .setDescription(`**${username}**, here are your invite details:`)
             .addFields(
               { name: '🎯 Total Invites', value: `**${userInviteCount}**`, inline: true },
-              { name: '🔗 Active Invite Links', value: `**${inviteDetails.length}**`, inline: true },
-              { name: '📊 Server Rank', value: 'Coming Soon™', inline: true }
+              { name: '🔗 Active Invite Links', value: `**${inviteDetails.length}**`, inline: true }
             )
             .setThumbnail(interaction.user.displayAvatarURL())
-            .setTimestamp();
-
-          // Add detailed invite breakdown if user has invites
-          if (inviteDetails.length > 0) {
-            const inviteList = inviteDetails.map(invite => 
-              `**${invite.code}** - ${invite.uses}/${invite.maxUses} uses (#${invite.channel})`
-            ).join('\n');
-
-            // Limit the field value to 1024 characters (Discord's limit)
-            const truncatedList = inviteList.length > 1024 
-              ? inviteList.substring(0, 1021) + '...' 
-              : inviteList;
-
-            inviteEmbed.addFields({ 
-              name: '🔗 Your Invite Links', 
-              value: truncatedList, 
-              inline: false 
+            .setTimestamp()
+            .setFooter({ 
+              text: `Requested by ${username} | Use server invites to grow the community!` 
             });
-          } else {
-            inviteEmbed.addFields({ 
-              name: '🔗 Your Invite Links', 
-              value: 'You haven\'t created any invite links yet.\nUse `/invite` command or right-click a channel → "Invite People" to create one!', 
-              inline: false 
-            });
-          }
-
-          inviteEmbed.setFooter({ 
-            text: `Requested by ${username} | Use server invites to grow the community!` 
-          });
 
           await interaction.editReply({ embeds: [inviteEmbed] });
           console.log(`${username} checked their invite count: ${userInviteCount} total invites`);
