@@ -490,6 +490,39 @@ client.once('ready', async () => {
   }
 });
 
+client.on('guildMemberAdd', async member => {
+  try {
+    // Check if the user is already verified in Firebase
+    const userSnapshot = await db.ref(`verified-users/${member.id}`).once('value');
+    
+    if (userSnapshot.exists() && verifiedRoleId) {
+      // User is verified, restore their role
+      try {
+        await member.roles.add(verifiedRoleId);
+        console.log(`Restored verified role for returning user: ${member.user.username} (${member.id})`);
+        
+        // Optional: Send a welcome back message to the verify channel
+        if (verifyChannelId) {
+          const verifyChannel = member.guild.channels.cache.get(verifyChannelId);
+          if (verifyChannel) {
+            const welcomeBackEmbed = new EmbedBuilder()
+              .setColor('#00FF00')
+              .setTitle('Welcome Back!')
+              .setDescription(`${member.user.username} has rejoined and their verified status has been automatically restored.`)
+              .setTimestamp();
+            
+            await verifyChannel.send({ embeds: [welcomeBackEmbed] });
+          }
+        }
+      } catch (roleError) {
+        console.error(`Failed to restore verified role for ${member.user.username}:`, roleError);
+      }
+    }
+  } catch (error) {
+    console.error(`Error checking verification status for new member ${member.user.username}:`, error);
+  }
+});
+
 client.on('interactionCreate', async interaction => {
   // Handle button interactions
   if (interaction.isButton()) {
