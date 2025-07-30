@@ -45,7 +45,8 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.DirectMessages,
     GatewayIntentBits.GuildMessageReactions,
-    GatewayIntentBits.GuildMessages
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
   ],
 });
 
@@ -439,6 +440,11 @@ const commands = [
         .setDescription('The giveaway ID to end')
         .setRequired(true))
     .setDefaultMemberPermissions(0)
+    .setDMPermission(false),
+
+  new SlashCommandBuilder()
+    .setName('invite')
+    .setDescription('Check your total invite count')
     .setDMPermission(false)
 ].map(command => command.toJSON());
 
@@ -658,6 +664,100 @@ client.on('messageReactionAdd', async (reaction, user) => {
 
   } catch (error) {
     console.error('Error in messageReactionAdd handler:', error);
+  }
+});
+
+client.on('messageCreate', async message => {
+  // Ignore bot messages
+  if (message.author.bot) return;
+  
+  // Check for !invite command
+  if (message.content.toLowerCase() === '!invite') {
+    try {
+      const guild = message.guild;
+      if (!guild) return;
+      
+      const userId = message.author.id;
+      const username = message.author.username;
+
+      // Fetch all invites for the guild
+      const invites = await guild.invites.fetch();
+      let userInviteCount = 0;
+      let inviteDetails = [];
+
+      // Count invites created by the user
+      invites.forEach(invite => {
+        if (invite.inviter && invite.inviter.id === userId) {
+          userInviteCount += invite.uses || 0;
+          inviteDetails.push({
+            code: invite.code,
+            uses: invite.uses || 0,
+            maxUses: invite.maxUses || 'Unlimited',
+            channel: invite.channel.name
+          });
+        }
+      });
+
+      // Create embed with invite information
+      const inviteEmbed = new EmbedBuilder()
+        .setColor('#0099ff')
+        .setTitle('📨 Your Invite Statistics')
+        .setDescription(`**${username}**, here are your invite details:`)
+        .addFields(
+          { name: '🎯 Total Invites', value: `**${userInviteCount}**`, inline: true },
+          { name: '🔗 Active Invite Links', value: `**${inviteDetails.length}**`, inline: true },
+          { name: '📊 Server Rank', value: 'Coming Soon™', inline: true }
+        )
+        .setThumbnail(message.author.displayAvatarURL())
+        .setTimestamp();
+
+      // Add detailed invite breakdown if user has invites
+      if (inviteDetails.length > 0) {
+        const inviteList = inviteDetails.map(invite => 
+          `**${invite.code}** - ${invite.uses}/${invite.maxUses} uses (#${invite.channel})`
+        ).join('\n');
+
+        // Limit the field value to 1024 characters (Discord's limit)
+        const truncatedList = inviteList.length > 1024 
+          ? inviteList.substring(0, 1021) + '...' 
+          : inviteList;
+
+        inviteEmbed.addFields({ 
+          name: '🔗 Your Invite Links', 
+          value: truncatedList, 
+          inline: false 
+        });
+      } else {
+        inviteEmbed.addFields({ 
+          name: '🔗 Your Invite Links', 
+          value: 'You haven\'t created any invite links yet.\nUse `/invite` command or right-click a channel → "Invite People" to create one!', 
+          inline: false 
+        });
+      }
+
+      inviteEmbed.setFooter({ 
+        text: `Requested by ${username} | Use server invites to grow the community!` 
+      });
+
+      await message.reply({ embeds: [inviteEmbed] });
+      console.log(`${username} checked their invite count via prefix command: ${userInviteCount} total invites`);
+
+    } catch (error) {
+      console.error(`Error fetching invites for ${message.author.username} (prefix):`, error);
+      
+      const errorEmbed = new EmbedBuilder()
+        .setColor('#FF0000')
+        .setTitle('❌ Error')
+        .setDescription('Unable to fetch your invite information. This might be due to missing permissions or a temporary Discord API issue.')
+        .addFields({ 
+          name: 'Possible Solutions', 
+          value: '• Try again in a few moments\n• Contact server administrators if the problem persists', 
+          inline: false 
+        })
+        .setTimestamp();
+
+      await message.reply({ embeds: [errorEmbed] });
+    }
   }
 });
 
@@ -971,6 +1071,94 @@ client.on('interactionCreate', async interaction => {
         await interaction.editReply({ 
           content: `✅ Successfully ended giveaway: \`${giveawayIdToEnd}\`` 
         });
+        break;
+
+      case 'invite':
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+          const guild = interaction.guild;
+          const userId = interaction.user.id;
+          const username = interaction.user.username;
+
+          // Fetch all invites for the guild
+          const invites = await guild.invites.fetch();
+          let userInviteCount = 0;
+          let inviteDetails = [];
+
+          // Count invites created by the user
+          invites.forEach(invite => {
+            if (invite.inviter && invite.inviter.id === userId) {
+              userInviteCount += invite.uses || 0;
+              inviteDetails.push({
+                code: invite.code,
+                uses: invite.uses || 0,
+                maxUses: invite.maxUses || 'Unlimited',
+                channel: invite.channel.name
+              });
+            }
+          });
+
+          // Create embed with invite information
+          const inviteEmbed = new EmbedBuilder()
+            .setColor('#0099ff')
+            .setTitle('📨 Your Invite Statistics')
+            .setDescription(`**${username}**, here are your invite details:`)
+            .addFields(
+              { name: '🎯 Total Invites', value: `**${userInviteCount}**`, inline: true },
+              { name: '🔗 Active Invite Links', value: `**${inviteDetails.length}**`, inline: true },
+              { name: '📊 Server Rank', value: 'Coming Soon™', inline: true }
+            )
+            .setThumbnail(interaction.user.displayAvatarURL())
+            .setTimestamp();
+
+          // Add detailed invite breakdown if user has invites
+          if (inviteDetails.length > 0) {
+            const inviteList = inviteDetails.map(invite => 
+              `**${invite.code}** - ${invite.uses}/${invite.maxUses} uses (#${invite.channel})`
+            ).join('\n');
+
+            // Limit the field value to 1024 characters (Discord's limit)
+            const truncatedList = inviteList.length > 1024 
+              ? inviteList.substring(0, 1021) + '...' 
+              : inviteList;
+
+            inviteEmbed.addFields({ 
+              name: '🔗 Your Invite Links', 
+              value: truncatedList, 
+              inline: false 
+            });
+          } else {
+            inviteEmbed.addFields({ 
+              name: '🔗 Your Invite Links', 
+              value: 'You haven\'t created any invite links yet.\nUse `/invite` command or right-click a channel → "Invite People" to create one!', 
+              inline: false 
+            });
+          }
+
+          inviteEmbed.setFooter({ 
+            text: `Requested by ${username} | Use server invites to grow the community!` 
+          });
+
+          await interaction.editReply({ embeds: [inviteEmbed] });
+          console.log(`${username} checked their invite count: ${userInviteCount} total invites`);
+
+        } catch (error) {
+          console.error(`Error fetching invites for ${interaction.user.username}:`, error);
+          
+          const errorEmbed = new EmbedBuilder()
+            .setColor('#FF0000')
+            .setTitle('❌ Error')
+            .setDescription('Unable to fetch your invite information. This might be due to missing permissions or a temporary Discord API issue.')
+            .addFields({ 
+              name: 'Possible Solutions', 
+              value: '• Try again in a few moments\n• Contact server administrators if the problem persists', 
+              inline: false 
+            })
+            .setTimestamp();
+
+          await interaction.editReply({ embeds: [errorEmbed] });
+        }
         break;
     }
   } catch (error) {
