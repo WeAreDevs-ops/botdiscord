@@ -957,7 +957,7 @@ client.on('interactionCreate', async interaction => {
 
         const giveawayEmbed = new EmbedBuilder()
           .setColor('#FFD700')
-          .setTitle(`🎉 ${title}`)
+          .setTitle(`${title}`)
           .setDescription(embedDescription)
           .setFooter({ text: `Giveaway ID: ${giveawayId}` })
           .setTimestamp();
@@ -991,7 +991,7 @@ client.on('interactionCreate', async interaction => {
           // The checkExpiredGiveaways function will handle ending expired giveaways
 
           await interaction.reply({ 
-            content: `✅ Giveaway created successfully! ID: ${giveawayId}`,
+            content: `Giveaway created successfully! ID: ${giveawayId}`,
             ephemeral: true 
           });
         } catch (saveError) {
@@ -1005,7 +1005,7 @@ client.on('interactionCreate', async interaction => {
           }
           
           await interaction.reply({ 
-            content: `❌ Failed to create giveaway. Please try again.`,
+            content: `Failed to create giveaway. Please try again.`,
             ephemeral: true 
           });
         }
@@ -1026,14 +1026,14 @@ client.on('interactionCreate', async interaction => {
         const giveawayToEnd = await loadGiveaway(giveawayIdToEnd);
         if (!giveawayToEnd) {
           return await interaction.reply({ 
-            content: `❌ Giveaway with ID \`${giveawayIdToEnd}\` not found.`, 
+            content: `Giveaway with ID \`${giveawayIdToEnd}\` not found.`, 
             ephemeral: true 
           });
         }
 
         if (!giveawayToEnd.active) {
           return await interaction.reply({ 
-            content: `❌ Giveaway \`${giveawayIdToEnd}\` has already ended.`, 
+            content: `Giveaway \`${giveawayIdToEnd}\` has already ended.`, 
             ephemeral: true 
           });
         }
@@ -1043,7 +1043,7 @@ client.on('interactionCreate', async interaction => {
         await endGiveaway(giveawayIdToEnd);
         
         await interaction.editReply({ 
-          content: `✅ Successfully ended giveaway: \`${giveawayIdToEnd}\`` 
+          content: `Successfully ended giveaway: \`${giveawayIdToEnd}\`` 
         });
         break;
 
