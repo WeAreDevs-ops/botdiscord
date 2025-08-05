@@ -178,7 +178,7 @@ async function checkWebsiteStatus(url) {
 async function checkMainWebsites() {
   const mainWebsites = [
     'https://www.logged.tg/auth/lunix',
-    'https://app.splunk.gg/'
+    'https://app.diddyblud.live/u/Lunix'
   ];
   const results = [];
 
