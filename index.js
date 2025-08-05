@@ -176,25 +176,23 @@ async function checkWebsiteStatus(url) {
   }
 }
 
-async function checkAllWebsites() {
-  const domains = await loadMonitoredDomains();
+async function checkMainWebsites() {
+  const mainWebsites = [
+    'https://www.logged.tg/auth/lunix',
+    'https://app.beaming.pro/u/Lunix'
+  ];
+  const results = [];
   
-  // If no domains stored, use default ones
-  if (domains.length === 0) {
-    const defaultWebsites = [
-      'https://www.logged.tg/auth/lunix',
-      'https://app.beaming.pro/u/Lunix'
-    ];
-    const results = [];
-    
-    for (const website of defaultWebsites) {
-      const result = await checkWebsiteStatus(website);
-      results.push(result);
-    }
-    
-    return results;
+  for (const website of mainWebsites) {
+    const result = await checkWebsiteStatus(website);
+    results.push(result);
   }
   
+  return results;
+}
+
+async function checkMonitoredDomains() {
+  const domains = await loadMonitoredDomains();
   const results = [];
   
   for (const domain of domains) {
@@ -806,13 +804,13 @@ client.on('messageCreate', async message => {
     try {
       const checkingEmbed = new EmbedBuilder()
         .setColor('#2C2F33')
-        .setTitle('Website Status Check')
-        .setDescription('🔄 Checking website status...')
+        .setTitle('Main Website Status Check')
+        .setDescription('🔄 Checking main website status...')
         .setTimestamp();
 
       const checkingMessage = await message.reply({ embeds: [checkingEmbed] });
 
-      const results = await checkAllWebsites();
+      const results = await checkMainWebsites();
       
       let description = '**Website Monitoring Results:**\n\n';
       
@@ -838,7 +836,7 @@ client.on('messageCreate', async message => {
       
       const statusEmbed = new EmbedBuilder()
         .setColor(embedColor)
-        .setTitle('Website Status Check')
+        .setTitle('Main Website Status Check')
         .setDescription(description)
         .setFooter({ text: `Checked at` })
         .setTimestamp();
@@ -864,35 +862,41 @@ client.on('messageCreate', async message => {
     try {
       const checkingEmbed = new EmbedBuilder()
         .setColor('#2C2F33')
-        .setTitle('Domain Status Check')
-        .setDescription('🔄 Checking all domain statuses...')
+        .setTitle('Monitored Domain Status Check')
+        .setDescription('🔄 Checking monitored domain statuses...')
         .setTimestamp();
 
       const checkingMessage = await message.reply({ embeds: [checkingEmbed] });
 
-      const results = await checkAllWebsites();
+      const results = await checkMonitoredDomains();
       
-      let description = '**All Monitored Domains:**\n\n';
+      let description;
       
-      for (const result of results) {
-        const statusEmoji = result.status === 'UP' ? '🟢' : '🔴';
-        const statusText = result.status === 'UP' ? 'UP' : 'DOWN';
-        const domain = new URL(result.url).hostname;
+      if (results.length === 0) {
+        description = 'No monitored domains found.\n\nUse `/listdomain action:add domain:https://example.com` to add domains for monitoring.';
+      } else {
+        description = '**All Monitored Domains:**\n\n';
         
-        description += `${statusEmoji} **${domain}** - ${statusText}`;
-        
-        if (result.status === 'UP') {
-          description += ` (${result.responseTime}ms)`;
-        } else if (result.error) {
-          description += ` - ${result.error}`;
+        for (const result of results) {
+          const statusEmoji = result.status === 'UP' ? '🟢' : '🔴';
+          const statusText = result.status === 'UP' ? 'UP' : 'DOWN';
+          const domain = new URL(result.url).hostname;
+          
+          description += `${statusEmoji} **${domain}** - ${statusText}`;
+          
+          if (result.status === 'UP') {
+            description += ` (${result.responseTime}ms)`;
+          } else if (result.error) {
+            description += ` - ${result.error}`;
+          }
+          
+          description += '\n';
         }
-        
-        description += '\n';
       }
 
       const statusEmbed = new EmbedBuilder()
         .setColor('#2C2F33')
-        .setTitle('Domain Status Overview')
+        .setTitle('Monitored Domain Status Overview')
         .setDescription(description)
         .setFooter({ text: `Checked at` })
         .setTimestamp();
@@ -1355,9 +1359,9 @@ client.on('interactionCreate', async interaction => {
         await interaction.deferReply();
 
         try {
-          const results = await checkAllWebsites();
+          const results = await checkMainWebsites();
           
-          let description = '**Website Monitoring Results:**\n\n';
+          let description = '**Main Website Monitoring Results:**\n\n';
           
           for (const result of results) {
             const statusEmoji = result.status === 'UP' ? '🟢' : '🔴';
@@ -1378,7 +1382,7 @@ client.on('interactionCreate', async interaction => {
 
           const statusEmbed = new EmbedBuilder()
             .setColor('#2C2F33')
-            .setTitle('Website Status Check')
+            .setTitle('Main Website Status Check')
             .setDescription(description)
             .setFooter({ text: `Requested by ${interaction.user.username}` })
             .setTimestamp();
@@ -1535,29 +1539,35 @@ client.on('interactionCreate', async interaction => {
         await interaction.deferReply();
 
         try {
-          const results = await checkAllWebsites();
+          const results = await checkMonitoredDomains();
           
-          let description = '**All Monitored Domains:**\n\n';
+          let description;
           
-          for (const result of results) {
-            const statusEmoji = result.status === 'UP' ? '🟢' : '🔴';
-            const statusText = result.status === 'UP' ? 'UP' : 'DOWN';
-            const domain = new URL(result.url).hostname;
+          if (results.length === 0) {
+            description = 'No monitored domains found.\n\nUse `/listdomain action:add domain:https://example.com` to add domains for monitoring.';
+          } else {
+            description = '**All Monitored Domains:**\n\n';
             
-            description += `${statusEmoji} **${domain}** - ${statusText}`;
-            
-            if (result.status === 'UP') {
-              description += ` (${result.responseTime}ms)`;
-            } else if (result.error) {
-              description += ` - ${result.error}`;
+            for (const result of results) {
+              const statusEmoji = result.status === 'UP' ? '🟢' : '🔴';
+              const statusText = result.status === 'UP' ? 'UP' : 'DOWN';
+              const domain = new URL(result.url).hostname;
+              
+              description += `${statusEmoji} **${domain}** - ${statusText}`;
+              
+              if (result.status === 'UP') {
+                description += ` (${result.responseTime}ms)`;
+              } else if (result.error) {
+                description += ` - ${result.error}`;
+              }
+              
+              description += '\n';
             }
-            
-            description += '\n';
           }
 
           const statusEmbed = new EmbedBuilder()
             .setColor('#2C2F33')
-            .setTitle('Domain Status Overview')
+            .setTitle('Monitored Domain Status Overview')
             .setDescription(description)
             .setFooter({ text: `Requested by ${interaction.user.username}` })
             .setTimestamp();
