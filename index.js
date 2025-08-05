@@ -169,7 +169,7 @@ async function endGiveaway(giveawayId) {
       // Try to send a fallback message and mark as inactive
       try {
         const fallbackEmbed = new EmbedBuilder()
-          .setColor('#FF0000')
+          .setColor('#2C2F33')
           .setTitle('Giveaway Ended')
           .setDescription(`**${giveawayData.title}**\n\nOriginal message not found. Giveaway has ended.`)
           .setFooter({ text: `Giveaway ID: ${giveawayId}` })
@@ -195,7 +195,7 @@ async function endGiveaway(giveawayId) {
       console.log(`No reaction found for emoji: ${giveawayData.emoji}`);
       // Still end the giveaway even if no reactions
       const noReactionEmbed = new EmbedBuilder()
-        .setColor('#FF0000')
+        .setColor('#2C2F33')
         .setTitle('Giveaway Ended')
         .setDescription(`**${giveawayData.title}**\n\nNo participants found!`)
         .setFooter({ text: `Giveaway ID: ${giveawayId}` })
@@ -205,7 +205,7 @@ async function endGiveaway(giveawayId) {
       
       // Update original message
       const endedEmbed = new EmbedBuilder()
-        .setColor('#808080')
+        .setColor('#2C2F33')
         .setTitle(`${giveawayData.title} [ENDED]`)
         .setDescription(giveawayData.description + '\n\n **No participants**\n\n**This giveaway has ended.**')
         .setFooter({ text: `Giveaway ID: ${giveawayId} | Ended` })
@@ -278,7 +278,7 @@ async function endGiveaway(giveawayId) {
       // No valid participants
       winnerAnnouncement = 'No valid participants found!';
       const noWinnerEmbed = new EmbedBuilder()
-        .setColor('#FF0000')
+        .setColor('#2C2F33')
         .setTitle('Giveaway Ended')
         .setDescription(`**${giveawayData.title}**\n\n **${winnerAnnouncement}**`)
         .setFooter({ text: `Giveaway ID: ${giveawayId}` })
@@ -299,7 +299,7 @@ async function endGiveaway(giveawayId) {
       winnerAnnouncement = `🏆 **Winner(s):** ${winnersList}`;
 
       const winnerEmbed = new EmbedBuilder()
-        .setColor('#00FF00')
+        .setColor('#2C2F33')
         .setTitle('Giveaway Ended - Congratulations!')
         .setDescription(`**${giveawayData.title}**\n\n${winnerAnnouncement}`)
         .addFields({ name: 'Total Participants', value: `${validParticipants.length + winners.length}`, inline: true })
@@ -313,7 +313,7 @@ async function endGiveaway(giveawayId) {
       for (const winner of winners) {
         try {
           const dmEmbed = new EmbedBuilder()
-            .setColor('#FFD700')
+            .setColor('#2C2F33')
             .setTitle('Congratulations!')
             .setDescription(`You won the giveaway: **${giveawayData.title}** in ${guild.name}!\n\nPlease contact the server administrators to claim your prize.`)
             .setTimestamp();
@@ -330,7 +330,7 @@ async function endGiveaway(giveawayId) {
     const winnerText = winners.length > 0 ? `\n\n${winnerAnnouncement}` : `\n\n❌ **${winnerAnnouncement}**`;
     
     const endedEmbed = new EmbedBuilder()
-      .setColor(winners.length > 0 ? '#00FF00' : '#FF0000')
+      .setColor(winners.length > 0 ? '#2C2F33' : '#2C2F33)
       .setTitle(`${giveawayData.title} [ENDED]`)
       .setDescription(giveawayData.description + winnerText + '\n\n**This giveaway has ended.**')
       .setFooter({ text: `Giveaway ID: ${giveawayId} | Ended` })
@@ -460,7 +460,7 @@ const rest = new REST({ version: '10' }).setToken(token);
 
 async function sendVerificationEmbed(channel) {
   const verifyEmbed = new EmbedBuilder()
-    .setColor('#FF0000')
+    .setColor('#2C2F33')
     .setTitle('Verification Required')
     .setDescription('Click the button below to verify and access the server.')
     .setTimestamp();
@@ -541,7 +541,7 @@ client.on('guildMemberAdd', async member => {
         // Send a private welcome back message to the user
         try {
           const welcomeBackEmbed = new EmbedBuilder()
-            .setColor('#00FF00')
+            .setColor('#2C2F33')
             .setTitle('Welcome Back!')
             .setDescription(`Welcome back to **${member.guild.name}**! Your verified status has been automatically restored.`)
             .setTimestamp();
@@ -644,7 +644,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
         // Try to send DM with error message
         try {
           const errorEmbed = new EmbedBuilder()
-            .setColor('#FF0000')
+            .setColor('#2C2F33')
             .setTitle('Giveaway Entry Denied')
             .setDescription(errorMessage)
             .addFields({ name: 'Giveaway', value: giveawayData.title, inline: true })
@@ -700,7 +700,7 @@ client.on('messageCreate', async message => {
 
       // Create embed with invite information
       const inviteEmbed = new EmbedBuilder()
-        .setColor('#0099ff')
+        .setColor('#2C2F33')
         .setTitle('Your Invite Statistics')
         .setDescription(`**${username}**, here are your invite details:`)
         .addFields(
@@ -720,8 +720,8 @@ client.on('messageCreate', async message => {
       console.error(`Error fetching invites for ${message.author.username} (prefix):`, error);
       
       const errorEmbed = new EmbedBuilder()
-        .setColor('#FF0000')
-        .setTitle('❌ Error')
+        .setColor('#2C2F33')
+        .setTitle('Error')
         .setDescription('Unable to fetch your invite information. This might be due to missing permissions or a temporary Discord API issue.')
         .addFields({ 
           name: 'Possible Solutions', 
@@ -800,8 +800,8 @@ client.on('interactionCreate', async interaction => {
       const channelName = restrictedChannel ? restrictedChannel.name : 'unknown';
       
       const restrictionEmbed = new EmbedBuilder()
-        .setColor('#ff0000')
-        .setTitle('🚫 Command Restricted')
+        .setColor('#2C2F33')
+        .setTitle('Command Restricted')
         .setDescription(`This command can only be used in <#${channelRestrictions[commandName]}> (${channelName})`)
         .setTimestamp();
 
@@ -852,7 +852,7 @@ client.on('interactionCreate', async interaction => {
         let failCount = 0;
 
         const restoreEmbed = new EmbedBuilder()
-          .setColor('#0099ff')
+          .setColor('#2C2F33')
           .setTitle('Server Restoration')
           .setDescription(customMessage)
           .setTimestamp();
@@ -870,8 +870,8 @@ client.on('interactionCreate', async interaction => {
         }
 
         const resultEmbed = new EmbedBuilder()
-          .setColor('#00ff00')
-          .setTitle('🔁 Restore Complete')
+          .setColor('#2C2F33')
+          .setTitle('Restore Complete')
           .setDescription('Finished sending restore messages to all verified users from Firebase.')
           .addFields(
             { name: 'Total Users', value: `${userCount}`, inline: true },
@@ -898,8 +898,8 @@ client.on('interactionCreate', async interaction => {
         await saveChannelRestriction(commandToRestrict, restrictedChannel.id);
 
         const setCommandEmbed = new EmbedBuilder()
-          .setColor('#00ff00')
-          .setTitle('⚙️ Command Restriction Set')
+          .setColor('#2C2F33')
+          .setTitle('Command Restriction Set')
           .setDescription(`The \`/${commandToRestrict}\` command can now only be used in <#${restrictedChannel.id}>`)
           .addFields(
             { name: 'Command', value: `/${commandToRestrict}`, inline: true },
@@ -956,7 +956,7 @@ client.on('interactionCreate', async interaction => {
         embedDescription += `\n\nReact with ${emoji} to enter!`;
 
         const giveawayEmbed = new EmbedBuilder()
-          .setColor('#FFD700')
+          .setColor('#2C2F33')
           .setTitle(`${title}`)
           .setDescription(embedDescription)
           .setFooter({ text: `Giveaway ID: ${giveawayId}` })
@@ -1075,7 +1075,7 @@ client.on('interactionCreate', async interaction => {
 
           // Create embed with invite information
           const inviteEmbed = new EmbedBuilder()
-            .setColor('#0099ff')
+            .setColor('#2C2F33')
             .setTitle('Your Invite Statistics')
             .setDescription(`**${username}**, here are your invite details:`)
             .addFields(
@@ -1095,8 +1095,8 @@ client.on('interactionCreate', async interaction => {
           console.error(`Error fetching invites for ${interaction.user.username}:`, error);
           
           const errorEmbed = new EmbedBuilder()
-            .setColor('#FF0000')
-            .setTitle('❌ Error')
+            .setColor('#2C2F33')
+            .setTitle('Error')
             .setDescription('Unable to fetch your invite information. This might be due to missing permissions or a temporary Discord API issue.')
             .addFields({ 
               name: 'Possible Solutions', 
