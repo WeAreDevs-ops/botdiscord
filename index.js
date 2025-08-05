@@ -330,7 +330,7 @@ async function endGiveaway(giveawayId) {
     const winnerText = winners.length > 0 ? `\n\n${winnerAnnouncement}` : `\n\n❌ **${winnerAnnouncement}**`;
     
     const endedEmbed = new EmbedBuilder()
-      .setColor(winners.length > 0 ? '#2C2F33' : '#2C2F33)
+      .setColor(winners.length > 0 ? 0x2C2F33 : 0x2C2F33)
       .setTitle(`${giveawayData.title} [ENDED]`)
       .setDescription(giveawayData.description + winnerText + '\n\n**This giveaway has ended.**')
       .setFooter({ text: `Giveaway ID: ${giveawayId} | Ended` })
