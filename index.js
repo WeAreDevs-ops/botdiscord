@@ -148,9 +148,18 @@ async function checkWebsiteStatus(url) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
+    // Proxy configuration
+    const proxyUrl = 'http://hpbhwlum:ifhjayiy2wek@23.95.150.145:6114';
+    const { HttpsProxyAgent } = await import('https-proxy-agent');
+    const { HttpProxyAgent } = await import('http-proxy-agent');
+    
+    // Determine if URL is HTTPS or HTTP and use appropriate agent
+    const agent = url.startsWith('https:') ? new HttpsProxyAgent(proxyUrl) : new HttpProxyAgent(proxyUrl);
+
     const response = await fetch(url, {
       method: 'HEAD',
       signal: controller.signal,
+      agent: agent,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       }
