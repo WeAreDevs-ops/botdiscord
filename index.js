@@ -854,8 +854,13 @@ client.on('messageCreate', async message => {
         .setFooter({ text: `Checked at` })
         .setTimestamp();
 
-      await checkingMessage.edit({ embeds: [statusEmbed] });
+      const finalMessage = await checkingMessage.edit({ embeds: [statusEmbed] });
       console.log(`${message.author.username} checked website status via prefix command`);
+      
+      // Auto-delete after 5 seconds
+      setTimeout(() => {
+        finalMessage.delete().catch(() => {});
+      }, 5000);
 
     } catch (error) {
       console.error(`Error checking website status for ${message.author.username}:`, error);
@@ -914,8 +919,13 @@ client.on('messageCreate', async message => {
         .setFooter({ text: `Checked at` })
         .setTimestamp();
 
-      await checkingMessage.edit({ embeds: [statusEmbed] });
+      const finalMessage = await checkingMessage.edit({ embeds: [statusEmbed] });
       console.log(`${message.author.username} checked domain status via prefix command`);
+      
+      // Auto-delete after 5 seconds
+      setTimeout(() => {
+        finalMessage.delete().catch(() => {});
+      }, 5000);
 
     } catch (error) {
       console.error(`Error checking domain status for ${message.author.username}:`, error);
@@ -1400,8 +1410,13 @@ client.on('interactionCreate', async interaction => {
             .setFooter({ text: `Requested by ${interaction.user.username}` })
             .setTimestamp();
 
-          await interaction.editReply({ embeds: [statusEmbed] });
+          const reply = await interaction.editReply({ embeds: [statusEmbed] });
           console.log(`${interaction.user.username} checked website status via slash command`);
+          
+          // Auto-delete after 5 seconds
+          setTimeout(() => {
+            reply.delete().catch(() => {});
+          }, 5000);
 
         } catch (error) {
           console.error(`Error checking website status for ${interaction.user.username}:`, error);
@@ -1591,8 +1606,13 @@ client.on('interactionCreate', async interaction => {
             .setFooter({ text: `Requested by ${interaction.user.username}` })
             .setTimestamp();
 
-          await interaction.editReply({ embeds: [statusEmbed] });
+          const reply = await interaction.editReply({ embeds: [statusEmbed] });
           console.log(`${interaction.user.username} checked domain status via slash command`);
+          
+          // Auto-delete after 5 seconds
+          setTimeout(() => {
+            reply.delete().catch(() => {});
+          }, 5000);
 
         } catch (error) {
           console.error(`Error checking domain status for ${interaction.user.username}:`, error);
