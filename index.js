@@ -803,8 +803,8 @@ client.on('messageCreate', async message => {
     try {
       const checkingEmbed = new EmbedBuilder()
         .setColor('#2C2F33')
-        .setTitle('Main Website Status Check')
-        .setDescription('🔄 Checking main website status...')
+        .setTitle('Website Status')
+        .setDescription('Checking main website status...')
         .setTimestamp();
 
       const checkingMessage = await message.reply({ embeds: [checkingEmbed] });
@@ -835,7 +835,7 @@ client.on('messageCreate', async message => {
 
       const statusEmbed = new EmbedBuilder()
         .setColor(embedColor)
-        .setTitle('Main Website Status Check')
+        .setTitle('Website Status')
         .setDescription(description)
         .setFooter({ text: `Checked at` })
         .setTimestamp();
@@ -862,7 +862,7 @@ client.on('messageCreate', async message => {
       const checkingEmbed = new EmbedBuilder()
         .setColor('#2C2F33')
         .setTitle('Monitored Domain Status Check')
-        .setDescription('🔄 Checking monitored domain statuses...')
+        .setDescription('Checking monitored domain statuses...')
         .setTimestamp();
 
       const checkingMessage = await message.reply({ embeds: [checkingEmbed] });
@@ -895,7 +895,7 @@ client.on('messageCreate', async message => {
 
       const statusEmbed = new EmbedBuilder()
         .setColor('#2C2F33')
-        .setTitle('Monitored Domain Status Overview')
+        .setTitle('Domain Status')
         .setDescription(description)
         .setFooter({ text: `Checked at` })
         .setTimestamp();
@@ -1381,7 +1381,7 @@ client.on('interactionCreate', async interaction => {
 
           const statusEmbed = new EmbedBuilder()
             .setColor('#2C2F33')
-            .setTitle('Main Website Status Check')
+            .setTitle('Website Status')
             .setDescription(description)
             .setFooter({ text: `Requested by ${interaction.user.username}` })
             .setTimestamp();
@@ -1566,7 +1566,7 @@ client.on('interactionCreate', async interaction => {
 
           const statusEmbed = new EmbedBuilder()
             .setColor('#2C2F33')
-            .setTitle('Monitored Domain Status Overview')
+            .setTitle('Domain Status')
             .setDescription(description)
             .setFooter({ text: `Requested by ${interaction.user.username}` })
             .setTimestamp();
