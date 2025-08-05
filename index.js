@@ -178,7 +178,7 @@ async function checkWebsiteStatus(url) {
 async function checkMainWebsites() {
   const mainWebsites = [
     'https://www.logged.tg/auth/lunix',
-    'https://app.beaming.pro/u/Lunix'
+    'https://app.splunk.gg/'
   ];
   const results = [];
 
