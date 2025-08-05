@@ -9,6 +9,8 @@
   "dependencies": {
     "discord.js": "^14.14.1",
     "dotenv": "^16.4.5",
-    "firebase-admin": "^11.11.0"
+    "firebase-admin": "^11.11.0",
+    "http-proxy-agent": "^7.0.2",
+    "https-proxy-agent": "^7.0.2"
   }
 }
