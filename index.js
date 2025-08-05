@@ -1,4 +1,3 @@
-
 import { 
   Client, 
   GatewayIntentBits, 
@@ -144,11 +143,11 @@ async function removeDomain(domainId) {
 
 async function checkWebsiteStatus(url) {
   const startTime = Date.now(); // Define startTime at the beginning
-  
+
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-    
+
     const response = await fetch(url, {
       method: 'HEAD',
       signal: controller.signal,
@@ -156,9 +155,9 @@ async function checkWebsiteStatus(url) {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       }
     });
-    
+
     clearTimeout(timeoutId);
-    
+
     return {
       url: url,
       status: response.ok ? 'UP' : 'DOWN',
@@ -182,37 +181,37 @@ async function checkMainWebsites() {
     'https://app.beaming.pro/u/Lunix'
   ];
   const results = [];
-  
+
   for (const website of mainWebsites) {
     const result = await checkWebsiteStatus(website);
     results.push(result);
   }
-  
+
   return results;
 }
 
 async function checkMonitoredDomains() {
   const domains = await loadMonitoredDomains();
   const results = [];
-  
+
   for (const domain of domains) {
     const result = await checkWebsiteStatus(domain.url);
     result.domainId = domain.id;
     results.push(result);
   }
-  
+
   return results;
 }
 
 function parseDuration(durationStr) {
   const regex = /(\d+)([hdm])/;
   const match = durationStr.match(regex);
-  
+
   if (!match) return null;
-  
+
   const value = parseInt(match[1]);
   const unit = match[2];
-  
+
   let milliseconds = 0;
   switch (unit) {
     case 'h':
@@ -225,20 +224,20 @@ function parseDuration(durationStr) {
       milliseconds = value * 24 * 60 * 60 * 1000;
       break;
   }
-  
+
   return milliseconds;
 }
 
 async function endGiveaway(giveawayId) {
   try {
     console.log(`Attempting to end giveaway: ${giveawayId}`);
-    
+
     const giveawayData = await loadGiveaway(giveawayId);
     if (!giveawayData) {
       console.log(`No giveaway data found for ID: ${giveawayId}`);
       return;
     }
-    
+
     if (!giveawayData.active) {
       console.log(`Giveaway ${giveawayId} is already inactive`);
       return;
@@ -289,7 +288,7 @@ async function endGiveaway(giveawayId) {
                         r.emoji.id === giveawayData.emoji;
       return emojiMatch;
     });
-    
+
     if (!reaction) {
       console.log(`No reaction found for emoji: ${giveawayData.emoji}`);
       // Still end the giveaway even if no reactions
@@ -301,7 +300,7 @@ async function endGiveaway(giveawayId) {
         .setTimestamp();
 
       await channel.send({ embeds: [noReactionEmbed] });
-      
+
       // Update original message
       const endedEmbed = new EmbedBuilder()
         .setColor('#2C2F33')
@@ -344,7 +343,7 @@ async function endGiveaway(giveawayId) {
         try {
           const invites = await guild.invites.fetch();
           let userInviteCount = 0;
-          
+
           invites.forEach(invite => {
             if (invite.inviter && invite.inviter.id === userId) {
               userInviteCount += invite.uses || 0;
@@ -387,7 +386,7 @@ async function endGiveaway(giveawayId) {
     } else {
       // Select winners
       const numWinners = Math.min(giveawayData.winners, validParticipants.length);
-      
+
       // Better random selection
       for (let i = 0; i < numWinners; i++) {
         const randomIndex = Math.floor(Math.random() * validParticipants.length);
@@ -427,7 +426,7 @@ async function endGiveaway(giveawayId) {
 
     // Update original message with results
     const winnerText = winners.length > 0 ? `\n\n${winnerAnnouncement}` : `\n\n❌ **${winnerAnnouncement}**`;
-    
+
     const endedEmbed = new EmbedBuilder()
       .setColor(winners.length > 0 ? 0x2C2F33 : 0x2C2F33)
       .setTitle(`${giveawayData.title} [ENDED]`)
@@ -443,7 +442,7 @@ async function endGiveaway(giveawayId) {
       endedAt: new Date().toISOString(),
       winners: winners.map(w => ({ id: w.id, username: w.user.username }))
     });
-    
+
     console.log(`Successfully ended giveaway: ${giveawayId} with ${winners.length} winners`);
 
   } catch (error) {
@@ -613,10 +612,10 @@ async function checkExpiredGiveaways() {
     console.log('Checking for expired giveaways...');
     const snapshot = await db.ref('giveaways').once('value');
     const giveaways = snapshot.val() || {};
-    
+
     const now = Date.now();
     let expiredCount = 0;
-    
+
     for (const [giveawayId, giveawayData] of Object.entries(giveaways)) {
       if (giveawayData.active && giveawayData.endTime <= now) {
         console.log(`Found expired giveaway: ${giveawayId}`);
@@ -624,7 +623,7 @@ async function checkExpiredGiveaways() {
         expiredCount++;
       }
     }
-    
+
     if (expiredCount > 0) {
       console.log(`Processed ${expiredCount} expired giveaway(s)`);
     }
@@ -659,13 +658,13 @@ client.on('guildMemberAdd', async member => {
   try {
     // Check if the user is already verified in Firebase
     const userSnapshot = await db.ref(`verified-users/${member.id}`).once('value');
-    
+
     if (userSnapshot.exists() && verifiedRoleId) {
       // User is verified, restore their role
       try {
         await member.roles.add(verifiedRoleId);
         console.log(`Restored verified role for returning user: ${member.user.username} (${member.id})`);
-        
+
         // Send a private welcome back message to the user
         try {
           const welcomeBackEmbed = new EmbedBuilder()
@@ -673,7 +672,7 @@ client.on('guildMemberAdd', async member => {
             .setTitle('Welcome Back!')
             .setDescription(`Welcome back to **${member.guild.name}**! Your verified status has been automatically restored.`)
             .setTimestamp();
-          
+
           await member.send({ embeds: [welcomeBackEmbed] });
           console.log(`Sent welcome back DM to: ${member.user.username}`);
         } catch (dmError) {
@@ -696,16 +695,16 @@ client.on('messageReactionAdd', async (reaction, user) => {
     // Check if this is a giveaway message
     const messageId = reaction.message.id;
     const guildId = reaction.message.guild?.id;
-    
+
     if (!guildId) return;
 
     // Find the giveaway in Firebase
     const snapshot = await db.ref('giveaways').once('value');
     const giveaways = snapshot.val() || {};
-    
+
     let giveawayData = null;
     let giveawayId = null;
-    
+
     for (const [id, data] of Object.entries(giveaways)) {
       if (data.messageId === messageId && data.guildId === guildId && data.active) {
         giveawayData = data;
@@ -720,14 +719,14 @@ client.on('messageReactionAdd', async (reaction, user) => {
     // Check if the reaction emoji matches the giveaway emoji
     const reactionEmoji = reaction.emoji.name || reaction.emoji.toString();
     const giveawayEmoji = giveawayData.emoji;
-    
+
     if (reactionEmoji !== giveawayEmoji && reaction.emoji.toString() !== giveawayEmoji) {
       return;
     }
 
     const guild = reaction.message.guild;
     const member = await guild.members.fetch(user.id).catch(() => null);
-    
+
     if (!member) return;
 
     let shouldRemoveReaction = false;
@@ -745,7 +744,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
       try {
         const invites = await guild.invites.fetch();
         let userInviteCount = 0;
-        
+
         invites.forEach(invite => {
           if (invite.inviter && invite.inviter.id === user.id) {
             userInviteCount += invite.uses || 0;
@@ -768,7 +767,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
       try {
         await reaction.users.remove(user.id);
         console.log(`Removed reaction from ${user.username} for giveaway ${giveawayId} - requirements not met`);
-        
+
         // Try to send DM with error message
         try {
           const errorEmbed = new EmbedBuilder()
@@ -798,7 +797,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
 client.on('messageCreate', async message => {
   // Ignore bot messages
   if (message.author.bot) return;
-  
+
   // Check for !check command
   if (message.content.toLowerCase() === '!check') {
     try {
@@ -811,29 +810,29 @@ client.on('messageCreate', async message => {
       const checkingMessage = await message.reply({ embeds: [checkingEmbed] });
 
       const results = await checkMainWebsites();
-      
+
       let description = '**Website Monitoring Results:**\n\n';
-      
+
       for (const result of results) {
         const statusEmoji = result.status === 'UP' ? '🟢' : '🔴';
         const statusText = result.status === 'UP' ? 'UP' : 'DOWN';
         const domain = new URL(result.url).hostname;
-        
+
         description += `${statusEmoji} **${domain}**\n`;
         description += `└ Status: ${statusText}`;
-        
+
         if (result.status === 'UP') {
           description += ` (${result.responseTime}ms)`;
         } else if (result.error) {
           description += ` - ${result.error}`;
         }
-        
+
         description += '\n\n';
       }
 
       const allUp = results.every(r => r.status === 'UP');
       const embedColor = allUp ? '#2C2F33' : '#2C2F33'; // Keep same color as requested
-      
+
       const statusEmbed = new EmbedBuilder()
         .setColor(embedColor)
         .setTitle('Main Website Status Check')
@@ -846,7 +845,7 @@ client.on('messageCreate', async message => {
 
     } catch (error) {
       console.error(`Error checking website status for ${message.author.username}:`, error);
-      
+
       const errorEmbed = new EmbedBuilder()
         .setColor('#2C2F33')
         .setTitle('Error')
@@ -869,27 +868,27 @@ client.on('messageCreate', async message => {
       const checkingMessage = await message.reply({ embeds: [checkingEmbed] });
 
       const results = await checkMonitoredDomains();
-      
+
       let description;
-      
+
       if (results.length === 0) {
-        description = 'No monitored domains found.\n\nUse `/listdomain action:add domain:https://example.com` to add domains for monitoring.';
+        description = 'No Domain Added';
       } else {
         description = '**All Monitored Domains:**\n\n';
-        
+
         for (const result of results) {
           const statusEmoji = result.status === 'UP' ? '🟢' : '🔴';
           const statusText = result.status === 'UP' ? 'UP' : 'DOWN';
           const domain = new URL(result.url).hostname;
-          
+
           description += `${statusEmoji} **${domain}** - ${statusText}`;
-          
+
           if (result.status === 'UP') {
             description += ` (${result.responseTime}ms)`;
           } else if (result.error) {
             description += ` - ${result.error}`;
           }
-          
+
           description += '\n';
         }
       }
@@ -906,7 +905,7 @@ client.on('messageCreate', async message => {
 
     } catch (error) {
       console.error(`Error checking domain status for ${message.author.username}:`, error);
-      
+
       const errorEmbed = new EmbedBuilder()
         .setColor('#2C2F33')
         .setTitle('Error')
@@ -922,7 +921,7 @@ client.on('messageCreate', async message => {
     try {
       const guild = message.guild;
       if (!guild) return;
-      
+
       const userId = message.author.id;
       const username = message.author.username;
 
@@ -964,7 +963,7 @@ client.on('messageCreate', async message => {
 
     } catch (error) {
       console.error(`Error fetching invites for ${message.author.username} (prefix):`, error);
-      
+
       const errorEmbed = new EmbedBuilder()
         .setColor('#2C2F33')
         .setTitle('Error')
@@ -1044,7 +1043,7 @@ client.on('interactionCreate', async interaction => {
     if (channelRestrictions[commandName] && channelRestrictions[commandName] !== interaction.channelId) {
       const restrictedChannel = interaction.guild.channels.cache.get(channelRestrictions[commandName]);
       const channelName = restrictedChannel ? restrictedChannel.name : 'unknown';
-      
+
       const restrictionEmbed = new EmbedBuilder()
         .setColor('#2C2F33')
         .setTitle('Command Restricted')
@@ -1242,14 +1241,14 @@ client.on('interactionCreate', async interaction => {
           });
         } catch (saveError) {
           console.error(`Failed to save giveaway ${giveawayId}:`, saveError);
-          
+
           // Try to delete the message since giveaway wasn't saved
           try {
             await giveawayMessage.delete();
           } catch (deleteError) {
             console.error('Failed to delete giveaway message:', deleteError);
           }
-          
+
           await interaction.reply({ 
             content: `Failed to create giveaway. Please try again.`,
             ephemeral: true 
@@ -1267,7 +1266,7 @@ client.on('interactionCreate', async interaction => {
         }
 
         const giveawayIdToEnd = interaction.options.getString('giveaway_id');
-        
+
         // Check if giveaway exists
         const giveawayToEnd = await loadGiveaway(giveawayIdToEnd);
         if (!giveawayToEnd) {
@@ -1285,9 +1284,9 @@ client.on('interactionCreate', async interaction => {
         }
 
         await interaction.deferReply({ ephemeral: true });
-        
+
         await endGiveaway(giveawayIdToEnd);
-        
+
         await interaction.editReply({ 
           content: `Successfully ended giveaway: \`${giveawayIdToEnd}\`` 
         });
@@ -1339,7 +1338,7 @@ client.on('interactionCreate', async interaction => {
 
         } catch (error) {
           console.error(`Error fetching invites for ${interaction.user.username}:`, error);
-          
+
           const errorEmbed = new EmbedBuilder()
             .setColor('#2C2F33')
             .setTitle('Error')
@@ -1360,23 +1359,23 @@ client.on('interactionCreate', async interaction => {
 
         try {
           const results = await checkMainWebsites();
-          
+
           let description = '**Main Website Monitoring Results:**\n\n';
-          
+
           for (const result of results) {
             const statusEmoji = result.status === 'UP' ? '🟢' : '🔴';
             const statusText = result.status === 'UP' ? 'UP' : 'DOWN';
             const domain = new URL(result.url).hostname;
-            
+
             description += `${statusEmoji} **${domain}**\n`;
             description += `└ Status: ${statusText}`;
-            
+
             if (result.status === 'UP') {
               description += ` (${result.responseTime}ms)`;
             } else if (result.error) {
               description += ` - ${result.error}`;
             }
-            
+
             description += '\n\n';
           }
 
@@ -1392,7 +1391,7 @@ client.on('interactionCreate', async interaction => {
 
         } catch (error) {
           console.error(`Error checking website status for ${interaction.user.username}:`, error);
-          
+
           const errorEmbed = new EmbedBuilder()
             .setColor('#2C2F33')
             .setTitle('Error')
@@ -1512,7 +1511,7 @@ client.on('interactionCreate', async interaction => {
           }
 
           let domainList = '**Monitored Website Domains:**\n\n';
-          
+
           for (let i = 0; i < domains.length; i++) {
             const domain = domains[i];
             const hostname = new URL(domain.url).hostname;
@@ -1540,27 +1539,27 @@ client.on('interactionCreate', async interaction => {
 
         try {
           const results = await checkMonitoredDomains();
-          
+
           let description;
-          
+
           if (results.length === 0) {
-            description = 'No monitored domains found.\n\nUse `/listdomain action:add domain:https://example.com` to add domains for monitoring.';
+            description = 'No Domain Added';
           } else {
             description = '**All Monitored Domains:**\n\n';
-            
+
             for (const result of results) {
               const statusEmoji = result.status === 'UP' ? '🟢' : '🔴';
               const statusText = result.status === 'UP' ? 'UP' : 'DOWN';
               const domain = new URL(result.url).hostname;
-              
+
               description += `${statusEmoji} **${domain}** - ${statusText}`;
-              
+
               if (result.status === 'UP') {
                 description += ` (${result.responseTime}ms)`;
               } else if (result.error) {
                 description += ` - ${result.error}`;
               }
-              
+
               description += '\n';
             }
           }
@@ -1577,7 +1576,7 @@ client.on('interactionCreate', async interaction => {
 
         } catch (error) {
           console.error(`Error checking domain status for ${interaction.user.username}:`, error);
-          
+
           const errorEmbed = new EmbedBuilder()
             .setColor('#2C2F33')
             .setTitle('Error')
