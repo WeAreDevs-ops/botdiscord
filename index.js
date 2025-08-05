@@ -143,6 +143,8 @@ async function removeDomain(domainId) {
 }
 
 async function checkWebsiteStatus(url) {
+  const startTime = Date.now(); // Define startTime at the beginning
+  
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
@@ -168,7 +170,8 @@ async function checkWebsiteStatus(url) {
       url: url,
       status: 'DOWN',
       statusCode: 'Error',
-      error: error.name === 'AbortError' ? 'Timeout' : error.message
+      error: error.name === 'AbortError' ? 'Timeout' : error.message,
+      responseTime: Date.now() - startTime
     };
   }
 }
@@ -185,9 +188,7 @@ async function checkAllWebsites() {
     const results = [];
     
     for (const website of defaultWebsites) {
-      const startTime = Date.now();
       const result = await checkWebsiteStatus(website);
-      result.responseTime = Date.now() - startTime;
       results.push(result);
     }
     
@@ -197,9 +198,7 @@ async function checkAllWebsites() {
   const results = [];
   
   for (const domain of domains) {
-    const startTime = Date.now();
     const result = await checkWebsiteStatus(domain.url);
-    result.responseTime = Date.now() - startTime;
     result.domainId = domain.id;
     results.push(result);
   }
