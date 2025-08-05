@@ -121,6 +121,7 @@ async function saveDomain(domainData) {
     const domainId = `domain_${Date.now()}`;
     await db.ref(`monitored-domains/${domainId}`).set({
       url: domainData.url,
+      displayName: domainData.displayName || new URL(domainData.url).hostname, // Store display name or hostname
       addedBy: domainData.addedBy,
       addedAt: new Date().toISOString()
     });
@@ -152,16 +153,16 @@ async function checkWebsiteStatus(url) {
     const proxyUrl = 'http://hpbhwlum:ifhjayiy2wek@23.95.150.145:6114';
     const { HttpsProxyAgent } = await import('https-proxy-agent');
     const { HttpProxyAgent } = await import('http-proxy-agent');
-    
+
     // Determine if URL is HTTPS or HTTP and use appropriate agent
     const agent = url.startsWith('https:') ? new HttpsProxyAgent(proxyUrl) : new HttpProxyAgent(proxyUrl);
 
     const response = await fetch(url, {
-      method: 'HEAD',
+      method: 'GET',
       signal: controller.signal,
       agent: agent,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
       }
     });
 
@@ -574,6 +575,10 @@ const commands = [
     .addStringOption(option =>
       option.setName('domain')
         .setDescription('Domain URL to add or domain ID to remove')
+        .setRequired(false))
+    .addStringOption(option =>
+      option.setName('display_name')
+        .setDescription('Custom display name for the domain (optional)')
         .setRequired(false))
     .setDefaultMemberPermissions(0)
     .setDMPermission(false),
@@ -1055,7 +1060,7 @@ client.on('interactionCreate', async interaction => {
 
       const restrictionEmbed = new EmbedBuilder()
         .setColor('#2C2F33')
-        .setTitle('Command Restricted')
+        .setTitle('Command Restriction')
         .setDescription(`This command can only be used in <#${channelRestrictions[commandName]}> (${channelName})`)
         .setTimestamp();
 
@@ -1422,6 +1427,7 @@ client.on('interactionCreate', async interaction => {
 
         const action = interaction.options.getString('action');
         const domainInput = interaction.options.getString('domain');
+        const displayNameInput = interaction.options.getString('display_name');
 
         if (action === 'add') {
           if (!domainInput) {
@@ -1445,6 +1451,7 @@ client.on('interactionCreate', async interaction => {
 
           const domainId = await saveDomain({
             url: domainInput,
+            displayName: displayNameInput, // Use provided display name
             addedBy: interaction.user.id
           });
 
@@ -1452,7 +1459,7 @@ client.on('interactionCreate', async interaction => {
             const addEmbed = new EmbedBuilder()
               .setColor('#2C2F33')
               .setTitle('Domain Added Successfully')
-              .setDescription(`✅ **${new URL(domainInput).hostname}** has been added to monitoring`)
+              .setDescription(`✅ **${displayNameInput || new URL(domainInput).hostname}** has been added to monitoring`)
               .addFields(
                 { name: 'Full URL', value: domainInput, inline: false },
                 { name: 'Domain ID', value: domainId, inline: true },
@@ -1461,7 +1468,7 @@ client.on('interactionCreate', async interaction => {
               .setTimestamp();
 
             await interaction.editReply({ embeds: [addEmbed] });
-            console.log(`${interaction.user.username} added domain: ${domainInput}`);
+            console.log(`${interaction.user.username} added domain: ${domainInput} with display name: ${displayNameInput}`);
           } else {
             await interaction.editReply({ content: 'Failed to add domain. Please try again.' });
           }
@@ -1489,7 +1496,7 @@ client.on('interactionCreate', async interaction => {
             const removeEmbed = new EmbedBuilder()
               .setColor('#2C2F33')
               .setTitle('Domain Removed Successfully')
-              .setDescription(`❌ **${new URL(domainToRemove.url).hostname}** has been removed from monitoring`)
+              .setDescription(`❌ **${domainToRemove.displayName || new URL(domainToRemove.url).hostname}** has been removed from monitoring`)
               .addFields(
                 { name: 'Full URL', value: domainToRemove.url, inline: false },
                 { name: 'Domain ID', value: domainInput, inline: true },
@@ -1513,7 +1520,7 @@ client.on('interactionCreate', async interaction => {
             const emptyEmbed = new EmbedBuilder()
               .setColor('#2C2F33')
               .setTitle('Domain Management')
-              .setDescription('No domains are currently being monitored.\n\nUse `/listdomain action:add domain:https://example.com` to add a domain.')
+              .setDescription('No domains are currently being monitored.\n\nUse `/listdomain action:add domain:https://example.com display_name:ExampleSite` to add a domain.')
               .setTimestamp();
 
             return await interaction.editReply({ embeds: [emptyEmbed] });
@@ -1523,8 +1530,8 @@ client.on('interactionCreate', async interaction => {
 
           for (let i = 0; i < domains.length; i++) {
             const domain = domains[i];
-            const hostname = new URL(domain.url).hostname;
-            domainList += `**${i + 1}.** ${hostname}\n`;
+            const displayName = domain.displayName || new URL(domain.url).hostname;
+            domainList += `**${i + 1}.** ${displayName}\n`;
             domainList += `└ URL: ${domain.url}\n`;
             domainList += `└ ID: \`${domain.id}\`\n`;
             domainList += `└ Added: <t:${Math.floor(new Date(domain.addedAt).getTime() / 1000)}:R>\n\n`;
@@ -1535,7 +1542,7 @@ client.on('interactionCreate', async interaction => {
             .setTitle('Domain Management')
             .setDescription(domainList)
             .addFields({ name: 'Total Domains', value: `${domains.length}`, inline: true })
-            .setFooter({ text: `Use /listdomain action:add domain:URL to add | Use /listdomain action:remove domain:ID to remove` })
+            .setFooter({ text: `Use /listdomain action:add domain:URL display_name:Name to add | Use /listdomain action:remove domain:ID to remove` })
             .setTimestamp();
 
           await interaction.editReply({ embeds: [listEmbed] });
@@ -1559,9 +1566,13 @@ client.on('interactionCreate', async interaction => {
             for (const result of results) {
               const statusEmoji = result.status === 'UP' ? '🟢' : '🔴';
               const statusText = result.status === 'UP' ? 'UP' : 'DOWN';
-              const domain = new URL(result.url).hostname;
 
-              description += `${statusEmoji} **${domain}** - ${statusText}`;
+              // Find the domain data to get display name
+              const domains = await loadMonitoredDomains();
+              const domainData = domains.find(d => d.id === result.domainId);
+              const displayName = domainData?.displayName || new URL(result.url).hostname;
+
+              description += `${statusEmoji} **${displayName}** - ${statusText}`;
 
               if (result.status === 'UP') {
                 description += ` (${result.responseTime}ms)`;
