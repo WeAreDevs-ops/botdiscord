@@ -105,6 +105,108 @@ async function loadGiveaway(giveawayId) {
   }
 }
 
+async function loadMonitoredDomains() {
+  try {
+    const snapshot = await db.ref('monitored-domains').once('value');
+    const domains = snapshot.val() || {};
+    // Convert object to array for easier handling
+    return Object.entries(domains).map(([id, data]) => ({ id, ...data }));
+  } catch (error) {
+    console.error('Error loading monitored domains:', error);
+    return [];
+  }
+}
+
+async function saveDomain(domainData) {
+  try {
+    const domainId = `domain_${Date.now()}`;
+    await db.ref(`monitored-domains/${domainId}`).set({
+      url: domainData.url,
+      addedBy: domainData.addedBy,
+      addedAt: new Date().toISOString()
+    });
+    return domainId;
+  } catch (error) {
+    console.error('Error saving domain:', error);
+    return null;
+  }
+}
+
+async function removeDomain(domainId) {
+  try {
+    await db.ref(`monitored-domains/${domainId}`).remove();
+    return true;
+  } catch (error) {
+    console.error('Error removing domain:', error);
+    return false;
+  }
+}
+
+async function checkWebsiteStatus(url) {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
+    const response = await fetch(url, {
+      method: 'HEAD',
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
+    
+    clearTimeout(timeoutId);
+    
+    return {
+      url: url,
+      status: response.ok ? 'UP' : 'DOWN',
+      statusCode: response.status,
+      responseTime: Date.now() - startTime
+    };
+  } catch (error) {
+    return {
+      url: url,
+      status: 'DOWN',
+      statusCode: 'Error',
+      error: error.name === 'AbortError' ? 'Timeout' : error.message
+    };
+  }
+}
+
+async function checkAllWebsites() {
+  const domains = await loadMonitoredDomains();
+  
+  // If no domains stored, use default ones
+  if (domains.length === 0) {
+    const defaultWebsites = [
+      'https://www.logged.tg/auth/lunix',
+      'https://app.beaming.pro/u/Lunix'
+    ];
+    const results = [];
+    
+    for (const website of defaultWebsites) {
+      const startTime = Date.now();
+      const result = await checkWebsiteStatus(website);
+      result.responseTime = Date.now() - startTime;
+      results.push(result);
+    }
+    
+    return results;
+  }
+  
+  const results = [];
+  
+  for (const domain of domains) {
+    const startTime = Date.now();
+    const result = await checkWebsiteStatus(domain.url);
+    result.responseTime = Date.now() - startTime;
+    result.domainId = domain.id;
+    results.push(result);
+  }
+  
+  return results;
+}
+
 function parseDuration(durationStr) {
   const regex = /(\d+)([hdm])/;
   const match = durationStr.match(regex);
@@ -445,6 +547,35 @@ const commands = [
   new SlashCommandBuilder()
     .setName('invite')
     .setDescription('Check your total invite count')
+    .setDMPermission(false),
+
+  new SlashCommandBuilder()
+    .setName('check')
+    .setDescription('Check website status for monitoring')
+    .setDMPermission(false),
+
+  new SlashCommandBuilder()
+    .setName('listdomain')
+    .setDescription('Manage monitored website domains (Owner/Admin only)')
+    .addStringOption(option =>
+      option.setName('action')
+        .setDescription('Action to perform')
+        .setRequired(true)
+        .addChoices(
+          { name: 'list', value: 'list' },
+          { name: 'add', value: 'add' },
+          { name: 'remove', value: 'remove' }
+        ))
+    .addStringOption(option =>
+      option.setName('domain')
+        .setDescription('Domain URL to add or domain ID to remove')
+        .setRequired(false))
+    .setDefaultMemberPermissions(0)
+    .setDMPermission(false),
+
+  new SlashCommandBuilder()
+    .setName('domain')
+    .setDescription('List all domains with their current status')
     .setDMPermission(false)
 ].map(command => command.toJSON());
 
@@ -671,6 +802,118 @@ client.on('messageCreate', async message => {
   // Ignore bot messages
   if (message.author.bot) return;
   
+  // Check for !check command
+  if (message.content.toLowerCase() === '!check') {
+    try {
+      const checkingEmbed = new EmbedBuilder()
+        .setColor('#2C2F33')
+        .setTitle('Website Status Check')
+        .setDescription('🔄 Checking website status...')
+        .setTimestamp();
+
+      const checkingMessage = await message.reply({ embeds: [checkingEmbed] });
+
+      const results = await checkAllWebsites();
+      
+      let description = '**Website Monitoring Results:**\n\n';
+      
+      for (const result of results) {
+        const statusEmoji = result.status === 'UP' ? '🟢' : '🔴';
+        const statusText = result.status === 'UP' ? 'UP' : 'DOWN';
+        const domain = new URL(result.url).hostname;
+        
+        description += `${statusEmoji} **${domain}**\n`;
+        description += `└ Status: ${statusText}`;
+        
+        if (result.status === 'UP') {
+          description += ` (${result.responseTime}ms)`;
+        } else if (result.error) {
+          description += ` - ${result.error}`;
+        }
+        
+        description += '\n\n';
+      }
+
+      const allUp = results.every(r => r.status === 'UP');
+      const embedColor = allUp ? '#2C2F33' : '#2C2F33'; // Keep same color as requested
+      
+      const statusEmbed = new EmbedBuilder()
+        .setColor(embedColor)
+        .setTitle('Website Status Check')
+        .setDescription(description)
+        .setFooter({ text: `Checked at` })
+        .setTimestamp();
+
+      await checkingMessage.edit({ embeds: [statusEmbed] });
+      console.log(`${message.author.username} checked website status via prefix command`);
+
+    } catch (error) {
+      console.error(`Error checking website status for ${message.author.username}:`, error);
+      
+      const errorEmbed = new EmbedBuilder()
+        .setColor('#2C2F33')
+        .setTitle('Error')
+        .setDescription('Unable to check website status. Please try again later.')
+        .setTimestamp();
+
+      await message.reply({ embeds: [errorEmbed] });
+    }
+  }
+
+  // Check for !domain command
+  if (message.content.toLowerCase() === '!domain') {
+    try {
+      const checkingEmbed = new EmbedBuilder()
+        .setColor('#2C2F33')
+        .setTitle('Domain Status Check')
+        .setDescription('🔄 Checking all domain statuses...')
+        .setTimestamp();
+
+      const checkingMessage = await message.reply({ embeds: [checkingEmbed] });
+
+      const results = await checkAllWebsites();
+      
+      let description = '**All Monitored Domains:**\n\n';
+      
+      for (const result of results) {
+        const statusEmoji = result.status === 'UP' ? '🟢' : '🔴';
+        const statusText = result.status === 'UP' ? 'UP' : 'DOWN';
+        const domain = new URL(result.url).hostname;
+        
+        description += `${statusEmoji} **${domain}** - ${statusText}`;
+        
+        if (result.status === 'UP') {
+          description += ` (${result.responseTime}ms)`;
+        } else if (result.error) {
+          description += ` - ${result.error}`;
+        }
+        
+        description += '\n';
+      }
+
+      const statusEmbed = new EmbedBuilder()
+        .setColor('#2C2F33')
+        .setTitle('Domain Status Overview')
+        .setDescription(description)
+        .setFooter({ text: `Checked at` })
+        .setTimestamp();
+
+      await checkingMessage.edit({ embeds: [statusEmbed] });
+      console.log(`${message.author.username} checked domain status via prefix command`);
+
+    } catch (error) {
+      console.error(`Error checking domain status for ${message.author.username}:`, error);
+      
+      const errorEmbed = new EmbedBuilder()
+        .setColor('#2C2F33')
+        .setTitle('Error')
+        .setDescription('Unable to check domain status. Please try again later.')
+        .setTimestamp();
+
+      await message.reply({ embeds: [errorEmbed] });
+    }
+  }
+
   // Check for !invite command
   if (message.content.toLowerCase() === '!invite') {
     try {
@@ -1103,6 +1346,233 @@ client.on('interactionCreate', async interaction => {
               value: '• Try again in a few moments\n• Contact server administrators if the problem persists', 
               inline: false 
             })
+            .setTimestamp();
+
+          await interaction.editReply({ embeds: [errorEmbed] });
+        }
+        break;
+
+      case 'check':
+        await interaction.deferReply();
+
+        try {
+          const results = await checkAllWebsites();
+          
+          let description = '**Website Monitoring Results:**\n\n';
+          
+          for (const result of results) {
+            const statusEmoji = result.status === 'UP' ? '🟢' : '🔴';
+            const statusText = result.status === 'UP' ? 'UP' : 'DOWN';
+            const domain = new URL(result.url).hostname;
+            
+            description += `${statusEmoji} **${domain}**\n`;
+            description += `└ Status: ${statusText}`;
+            
+            if (result.status === 'UP') {
+              description += ` (${result.responseTime}ms)`;
+            } else if (result.error) {
+              description += ` - ${result.error}`;
+            }
+            
+            description += '\n\n';
+          }
+
+          const statusEmbed = new EmbedBuilder()
+            .setColor('#2C2F33')
+            .setTitle('Website Status Check')
+            .setDescription(description)
+            .setFooter({ text: `Requested by ${interaction.user.username}` })
+            .setTimestamp();
+
+          await interaction.editReply({ embeds: [statusEmbed] });
+          console.log(`${interaction.user.username} checked website status via slash command`);
+
+        } catch (error) {
+          console.error(`Error checking website status for ${interaction.user.username}:`, error);
+          
+          const errorEmbed = new EmbedBuilder()
+            .setColor('#2C2F33')
+            .setTitle('Error')
+            .setDescription('Unable to check website status. Please try again later.')
+            .setTimestamp();
+
+          await interaction.editReply({ embeds: [errorEmbed] });
+        }
+        break;
+
+      case 'listdomain':
+        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && 
+            interaction.guild.ownerId !== interaction.user.id) {
+          return await interaction.reply({ 
+            content: 'You need Administrator permission or be the server owner to use this command.', 
+            ephemeral: true 
+          });
+        }
+
+        const action = interaction.options.getString('action');
+        const domainInput = interaction.options.getString('domain');
+
+        if (action === 'add') {
+          if (!domainInput) {
+            return await interaction.reply({ 
+              content: 'Please provide a domain URL to add.', 
+              ephemeral: true 
+            });
+          }
+
+          // Validate URL
+          try {
+            new URL(domainInput);
+          } catch (error) {
+            return await interaction.reply({ 
+              content: 'Invalid URL format. Please provide a valid URL (e.g., https://example.com)', 
+              ephemeral: true 
+            });
+          }
+
+          await interaction.deferReply({ ephemeral: true });
+
+          const domainId = await saveDomain({
+            url: domainInput,
+            addedBy: interaction.user.id
+          });
+
+          if (domainId) {
+            const addEmbed = new EmbedBuilder()
+              .setColor('#2C2F33')
+              .setTitle('Domain Added Successfully')
+              .setDescription(`✅ **${new URL(domainInput).hostname}** has been added to monitoring`)
+              .addFields(
+                { name: 'Full URL', value: domainInput, inline: false },
+                { name: 'Domain ID', value: domainId, inline: true },
+                { name: 'Added By', value: `<@${interaction.user.id}>`, inline: true }
+              )
+              .setTimestamp();
+
+            await interaction.editReply({ embeds: [addEmbed] });
+            console.log(`${interaction.user.username} added domain: ${domainInput}`);
+          } else {
+            await interaction.editReply({ content: 'Failed to add domain. Please try again.' });
+          }
+
+        } else if (action === 'remove') {
+          if (!domainInput) {
+            return await interaction.reply({ 
+              content: 'Please provide a domain ID to remove.', 
+              ephemeral: true 
+            });
+          }
+
+          await interaction.deferReply({ ephemeral: true });
+
+          const domains = await loadMonitoredDomains();
+          const domainToRemove = domains.find(d => d.id === domainInput);
+
+          if (!domainToRemove) {
+            return await interaction.editReply({ content: 'Domain ID not found.' });
+          }
+
+          const success = await removeDomain(domainInput);
+
+          if (success) {
+            const removeEmbed = new EmbedBuilder()
+              .setColor('#2C2F33')
+              .setTitle('Domain Removed Successfully')
+              .setDescription(`❌ **${new URL(domainToRemove.url).hostname}** has been removed from monitoring`)
+              .addFields(
+                { name: 'Full URL', value: domainToRemove.url, inline: false },
+                { name: 'Domain ID', value: domainInput, inline: true },
+                { name: 'Removed By', value: `<@${interaction.user.id}>`, inline: true }
+              )
+              .setTimestamp();
+
+            await interaction.editReply({ embeds: [removeEmbed] });
+            console.log(`${interaction.user.username} removed domain: ${domainToRemove.url}`);
+          } else {
+            await interaction.editReply({ content: 'Failed to remove domain. Please try again.' });
+          }
+
+        } else {
+          // List domains
+          await interaction.deferReply({ ephemeral: true });
+
+          const domains = await loadMonitoredDomains();
+
+          if (domains.length === 0) {
+            const emptyEmbed = new EmbedBuilder()
+              .setColor('#2C2F33')
+              .setTitle('Domain Management')
+              .setDescription('No domains are currently being monitored.\n\nUse `/listdomain action:add domain:https://example.com` to add a domain.')
+              .setTimestamp();
+
+            return await interaction.editReply({ embeds: [emptyEmbed] });
+          }
+
+          let domainList = '**Monitored Website Domains:**\n\n';
+          
+          for (let i = 0; i < domains.length; i++) {
+            const domain = domains[i];
+            const hostname = new URL(domain.url).hostname;
+            domainList += `**${i + 1}.** ${hostname}\n`;
+            domainList += `└ URL: ${domain.url}\n`;
+            domainList += `└ ID: \`${domain.id}\`\n`;
+            domainList += `└ Added: <t:${Math.floor(new Date(domain.addedAt).getTime() / 1000)}:R>\n\n`;
+          }
+
+          const listEmbed = new EmbedBuilder()
+            .setColor('#2C2F33')
+            .setTitle('Domain Management')
+            .setDescription(domainList)
+            .addFields({ name: 'Total Domains', value: `${domains.length}`, inline: true })
+            .setFooter({ text: `Use /listdomain action:add domain:URL to add | Use /listdomain action:remove domain:ID to remove` })
+            .setTimestamp();
+
+          await interaction.editReply({ embeds: [listEmbed] });
+          console.log(`${interaction.user.username} listed monitored domains`);
+        }
+        break;
+
+      case 'domain':
+        await interaction.deferReply();
+
+        try {
+          const results = await checkAllWebsites();
+          
+          let description = '**All Monitored Domains:**\n\n';
+          
+          for (const result of results) {
+            const statusEmoji = result.status === 'UP' ? '🟢' : '🔴';
+            const statusText = result.status === 'UP' ? 'UP' : 'DOWN';
+            const domain = new URL(result.url).hostname;
+            
+            description += `${statusEmoji} **${domain}** - ${statusText}`;
+            
+            if (result.status === 'UP') {
+              description += ` (${result.responseTime}ms)`;
+            } else if (result.error) {
+              description += ` - ${result.error}`;
+            }
+            
+            description += '\n';
+          }
+
+          const statusEmbed = new EmbedBuilder()
+            .setColor('#2C2F33')
+            .setTitle('Domain Status Overview')
+            .setDescription(description)
+            .setFooter({ text: `Requested by ${interaction.user.username}` })
+            .setTimestamp();
+
+          await interaction.editReply({ embeds: [statusEmbed] });
+          console.log(`${interaction.user.username} checked domain status via slash command`);
+
+        } catch (error) {
+          console.error(`Error checking domain status for ${interaction.user.username}:`, error);
+          
+          const errorEmbed = new EmbedBuilder()
+            .setColor('#2C2F33')
+            .setTitle('Error')
+            .setDescription('Unable to check domain status. Please try again later.')
             .setTimestamp();
 
           await interaction.editReply({ embeds: [errorEmbed] });
