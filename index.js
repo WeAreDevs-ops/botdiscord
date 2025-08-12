@@ -586,6 +586,18 @@ const commands = [
   new SlashCommandBuilder()
     .setName('domain')
     .setDescription('List all domains with their current status')
+    .setDMPermission(false),
+
+  new SlashCommandBuilder()
+    .setName('purge')
+    .setDescription('Delete a specified number of messages (Owner/Admin only)')
+    .addIntegerOption(option =>
+      option.setName('amount')
+        .setDescription('Number of messages to delete (1-100)')
+        .setRequired(true)
+        .setMinValue(1)
+        .setMaxValue(100))
+    .setDefaultMemberPermissions(0)
     .setDMPermission(false)
 ].map(command => command.toJSON());
 
@@ -1000,6 +1012,94 @@ client.on('messageCreate', async message => {
         .setTimestamp();
 
       await message.reply({ embeds: [errorEmbed] });
+    }
+  }
+
+  // Check for !purge command
+  if (message.content.toLowerCase().startsWith('!purge ')) {
+    // Check if user has admin permissions or is owner
+    if (!message.member.permissions.has(PermissionFlagsBits.Administrator) && 
+        message.guild.ownerId !== message.author.id) {
+      const noPermEmbed = new EmbedBuilder()
+        .setColor('#2C2F33')
+        .setTitle('Permission Denied')
+        .setDescription('You need Administrator permission or be the server owner to use this command.')
+        .setTimestamp();
+
+      const reply = await message.reply({ embeds: [noPermEmbed] });
+      
+      // Delete the reply after 5 seconds
+      setTimeout(() => {
+        reply.delete().catch(() => {});
+      }, 5000);
+      return;
+    }
+
+    const args = message.content.split(' ');
+    const amount = parseInt(args[1]);
+
+    if (isNaN(amount) || amount < 1 || amount > 100) {
+      const invalidEmbed = new EmbedBuilder()
+        .setColor('#2C2F33')
+        .setTitle('Invalid Amount')
+        .setDescription('Please provide a number between 1 and 100.')
+        .setTimestamp();
+
+      const reply = await message.reply({ embeds: [invalidEmbed] });
+      
+      // Delete the reply after 5 seconds
+      setTimeout(() => {
+        reply.delete().catch(() => {});
+      }, 5000);
+      return;
+    }
+
+    try {
+      // Delete the command message first
+      await message.delete();
+
+      // Fetch and delete the specified amount of messages
+      const fetchedMessages = await message.channel.messages.fetch({ limit: amount });
+      const deletedMessages = await message.channel.bulkDelete(fetchedMessages, true);
+
+      const successEmbed = new EmbedBuilder()
+        .setColor('#2C2F33')
+        .setTitle('Messages Purged')
+        .setDescription(`Successfully deleted **${deletedMessages.size}** messages.`)
+        .addFields(
+          { name: 'Requested by', value: `<@${message.author.id}>`, inline: true },
+          { name: 'Channel', value: `<#${message.channel.id}>`, inline: true }
+        )
+        .setTimestamp();
+
+      const confirmMessage = await message.channel.send({ embeds: [successEmbed] });
+      console.log(`${message.author.username} purged ${deletedMessages.size} messages in #${message.channel.name}`);
+      
+      // Delete confirmation message after 5 seconds
+      setTimeout(() => {
+        confirmMessage.delete().catch(() => {});
+      }, 5000);
+
+    } catch (error) {
+      console.error(`Error purging messages for ${message.author.username}:`, error);
+
+      const errorEmbed = new EmbedBuilder()
+        .setColor('#2C2F33')
+        .setTitle('Purge Error')
+        .setDescription('Unable to delete messages. This might be due to message age (older than 14 days) or missing permissions.')
+        .addFields({ 
+          name: 'Note', 
+          value: 'Discord only allows bulk deletion of messages newer than 14 days.', 
+          inline: false 
+        })
+        .setTimestamp();
+
+      const errorMsg = await message.channel.send({ embeds: [errorEmbed] });
+      
+      // Delete error message after 10 seconds
+      setTimeout(() => {
+        errorMsg.delete().catch(() => {});
+      }, 10000);
     }
   }
 });
@@ -1624,6 +1724,53 @@ client.on('interactionCreate', async interaction => {
             .setTimestamp();
 
           await interaction.editReply({ embeds: [errorEmbed] });
+        }
+        break;
+
+      case 'purge':
+        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && 
+            interaction.guild.ownerId !== interaction.user.id) {
+          return await interaction.reply({ 
+            content: 'You need Administrator permission or be the server owner to use this command.', 
+            ephemeral: true 
+          });
+        }
+
+        const amount = interaction.options.getInteger('amount');
+
+        try {
+          // Fetch and delete the specified amount of messages
+          const fetchedMessages = await interaction.channel.messages.fetch({ limit: amount });
+          const deletedMessages = await interaction.channel.bulkDelete(fetchedMessages, true);
+
+          const successEmbed = new EmbedBuilder()
+            .setColor('#2C2F33')
+            .setTitle('Messages Purged')
+            .setDescription(`Successfully deleted **${deletedMessages.size}** messages.`)
+            .addFields(
+              { name: 'Requested by', value: `<@${interaction.user.id}>`, inline: true },
+              { name: 'Channel', value: `<#${interaction.channel.id}>`, inline: true }
+            )
+            .setTimestamp();
+
+          await interaction.reply({ embeds: [successEmbed], ephemeral: true });
+          console.log(`${interaction.user.username} purged ${deletedMessages.size} messages in #${interaction.channel.name}`);
+
+        } catch (error) {
+          console.error(`Error purging messages for ${interaction.user.username}:`, error);
+
+          const errorEmbed = new EmbedBuilder()
+            .setColor('#2C2F33')
+            .setTitle('Purge Error')
+            .setDescription('Unable to delete messages. This might be due to message age (older than 14 days) or missing permissions.')
+            .addFields({ 
+              name: 'Note', 
+              value: 'Discord only allows bulk deletion of messages newer than 14 days.', 
+              inline: false 
+            })
+            .setTimestamp();
+
+          await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
         }
         break;
     }
