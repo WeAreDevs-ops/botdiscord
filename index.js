@@ -635,7 +635,6 @@ async function sendVerificationEmbed(channel) {
 
 async function checkExpiredGiveaways() {
   try {
-    console.log('Checking for expired giveaways...');
     const snapshot = await db.ref('giveaways').once('value');
     const giveaways = snapshot.val() || {};
 
