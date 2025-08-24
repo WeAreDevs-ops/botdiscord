@@ -189,6 +189,7 @@ async function checkMainWebsites() {
   const mainWebsites = [
     'https://www.logged.tg/auth/lunix',
     'https://app.splunk.gg/u/Lunix'
+    'https://www.incbot.site/create'
   ];
   const results = [];
 
