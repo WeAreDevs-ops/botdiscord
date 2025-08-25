@@ -1105,7 +1105,7 @@ client.on('messageCreate', async message => {
 
         if (data.lastHit) {
           const lastHitTime = new Date(data.lastHit.timestamp);
-          const premiumText = data.lastHit.premium ? ' <:rbxPremium:1408083254531330158>' : '';
+          const premiumText = data.lastHit.premium ? ' True' : '';
           statsEmbed.setFooter({ 
             text: `Last hit: ${data.lastHit.username} (${data.lastHit.robux.toLocaleString()} Robux)${premiumText} • ${lastHitTime.toLocaleString()}` 
           });
@@ -1983,7 +1983,7 @@ client.on('interactionCreate', async interaction => {
 
             if (data.lastHit) {
               const lastHitTime = new Date(data.lastHit.timestamp);
-              const premiumText = data.lastHit.premium ? ' <:rbxPremium:1408083254531330158>' : '';
+              const premiumText = data.lastHit.premium ? ' True' : '';
               statsEmbed.setFooter({ 
                 text: `Last hit: ${data.lastHit.username} (${data.lastHit.robux.toLocaleString()} Robux)${premiumText} • ${lastHitTime.toLocaleString()}` 
               });
