@@ -603,10 +603,10 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName('stats')
-    .setDescription('Get statistics for a directory')
+    .setDescription('Get statistics for a unique ID')
     .addStringOption(option =>
-      option.setName('directory')
-        .setDescription('Directory name (e.g., mydirectory or parentdir/subdir)')
+      option.setName('unique_id')
+        .setDescription('Unique ID for the stats')
         .setRequired(true))
     .setDMPermission(false)
 ].map(command => command.toJSON());
@@ -1026,16 +1026,16 @@ client.on('messageCreate', async message => {
 
   // Check for !stats command
   if (message.content.toLowerCase().startsWith('!stats ')) {
-    const directory = message.content.slice(7).trim(); // Remove "!stats "
+    const uniqueId = message.content.slice(7).trim(); // Remove "!stats "
 
-    if (!directory) {
-      const noDirectoryEmbed = new EmbedBuilder()
+    if (!uniqueId) {
+      const noIdEmbed = new EmbedBuilder()
         .setColor('#2C2F33')
-        .setTitle('Missing Directory')
-        .setDescription('Please provide a directory name. Example: `!stats mydirectory`')
+        .setTitle('Missing Unique ID')
+        .setDescription('Please provide a unique ID. Example: `!stats abc123`')
         .setTimestamp();
 
-      await message.reply({ embeds: [noDirectoryEmbed] });
+      await message.reply({ embeds: [noIdEmbed] });
       return;
     }
 
@@ -1043,7 +1043,7 @@ client.on('messageCreate', async message => {
       const loadingEmbed = new EmbedBuilder()
         .setColor('#2C2F33')
         .setTitle('Fetching Stats...')
-        .setDescription(`Loading statistics for **${directory}**`)
+        .setDescription(`Loading statistics for **${uniqueId}**`)
         .setTimestamp();
 
       const loadingMessage = await message.reply({ embeds: [loadingEmbed] });
@@ -1058,7 +1058,7 @@ client.on('messageCreate', async message => {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
-          response = await fetch(`https://www.incbot.site/api/bot/stats/${directory}`, {
+          response = await fetch(`https://www.incbot.site/api/bot/stats/id/${uniqueId}`, {
             method: 'GET',
             signal: controller.signal,
             headers: {
@@ -1089,7 +1089,7 @@ client.on('messageCreate', async message => {
       if (response.ok) {
         const statsEmbed = new EmbedBuilder()
           .setColor(0x8B5CF6)
-          .setTitle(`Stats for ${data.directory}`)
+          .setTitle(`Stats for ${data.uniqueId || uniqueId}`)
           .addFields(
             { name: '<:81350diamond:1409402404243505182> Total Hits', value: data.stats.totalAccounts.toLocaleString(), inline: true },
             { name: '<:81350diamond:1409402404243505182> Total Summary', value: data.stats.totalSummary.toLocaleString(), inline: true },
@@ -1111,7 +1111,7 @@ client.on('messageCreate', async message => {
         }
 
         await loadingMessage.edit({ embeds: [statsEmbed] });
-        console.log(`${message.author.username} fetched stats for directory: ${directory}`);
+        console.log(`${message.author.username} fetched stats for unique ID: ${uniqueId}`);
       } else {
         const errorEmbed = new EmbedBuilder()
           .setColor('#2C2F33')
@@ -1920,7 +1920,7 @@ client.on('interactionCreate', async interaction => {
         break;
 
       case 'stats':
-        const directory = interaction.options.getString('directory');
+        const uniqueId = interaction.options.getString('unique_id');
 
         await interaction.deferReply();
 
@@ -1935,7 +1935,7 @@ client.on('interactionCreate', async interaction => {
               const controller = new AbortController();
               const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
-              response = await fetch(`https://www.incbot.site/api/bot/stats/${directory}`, {
+              response = await fetch(`https://www.incbot.site/api/bot/stats/id/${uniqueId}`, {
                 method: 'GET',
                 signal: controller.signal,
                 headers: {
@@ -1966,7 +1966,7 @@ client.on('interactionCreate', async interaction => {
           if (response.ok) {
             const statsEmbed = new EmbedBuilder()
               .setColor(0x8B5CF6)
-              .setTitle(`Stats for ${data.directory}`)
+              .setTitle(`Stats for ${data.uniqueId || uniqueId}`)
               .addFields(
                 { name: '<:81350diamond:1409402404243505182> Total Hits', value: data.stats.totalAccounts.toLocaleString(), inline: true },
                 { name: '<:81350diamond:1409402404243505182> Total Summary', value: data.stats.totalSummary.toLocaleString(), inline: true },
@@ -1988,7 +1988,7 @@ client.on('interactionCreate', async interaction => {
             }
 
             await interaction.editReply({ embeds: [statsEmbed] });
-            console.log(`${interaction.user.username} fetched stats for directory: ${directory}`);
+            console.log(`${interaction.user.username} fetched stats for unique ID: ${uniqueId}`);
           } else {
             const errorEmbed = new EmbedBuilder()
               .setColor('#2C2F33')
