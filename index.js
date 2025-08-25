@@ -1064,7 +1064,8 @@ client.on('messageCreate', async message => {
             headers: {
               'User-Agent': 'Discord Bot/1.0',
               'Accept': 'application/json',
-              'Content-Type': 'application/json'
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${process.env.BOT_SECRET_KEY}`
             }
           });
 
@@ -1941,7 +1942,8 @@ client.on('interactionCreate', async interaction => {
                 headers: {
                   'User-Agent': 'Discord Bot/1.0',
                   'Accept': 'application/json',
-                  'Content-Type': 'application/json'
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${process.env.BOT_SECRET_KEY}`
                 }
               });
 
