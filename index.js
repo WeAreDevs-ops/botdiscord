@@ -1048,7 +1048,42 @@ client.on('messageCreate', async message => {
 
       const loadingMessage = await message.reply({ embeds: [loadingEmbed] });
 
-      const response = await fetch(`https://incbot.site/api/bot/stats/${directory}`);
+      // Retry logic with better error handling
+      let response;
+      let lastError;
+      const maxRetries = 3;
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
+          response = await fetch(`https://incbot.site/api/bot/stats/${directory}`, {
+            method: 'GET',
+            signal: controller.signal,
+            headers: {
+              'User-Agent': 'Discord Bot/1.0',
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            }
+          });
+
+          clearTimeout(timeoutId);
+          break; // Success, exit retry loop
+        } catch (error) {
+          lastError = error;
+          console.log(`Stats API attempt ${attempt}/${maxRetries} failed:`, error.message);
+          
+          if (attempt < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 2000 * attempt)); // Exponential backoff
+          }
+        }
+      }
+
+      if (!response) {
+        throw lastError;
+      }
+
       const data = await response.json();
       
       if (response.ok) {
@@ -1089,13 +1124,32 @@ client.on('messageCreate', async message => {
     } catch (error) {
       console.error(`Error fetching stats for ${message.author.username}:`, error);
 
+      let errorMessage = 'Unable to connect to the stats API. Please try again later.';
+      
+      if (error.code === 'ENOTFOUND') {
+        errorMessage = 'DNS resolution failed for incbot.site. The domain may be temporarily unavailable.';
+      } else if (error.name === 'AbortError') {
+        errorMessage = 'Request timed out. The API may be experiencing high load.';
+      } else if (error.code === 'ECONNREFUSED') {
+        errorMessage = 'Connection refused. The API server may be down.';
+      }
+
       const errorEmbed = new EmbedBuilder()
         .setColor('#2C2F33')
-        .setTitle('❌ Failed to fetch stats')
-        .setDescription('Unable to connect to the stats API. Please try again later.')
+        .setTitle('❌ Connection Error')
+        .setDescription(errorMessage)
+        .addFields({ 
+          name: 'Technical Details', 
+          value: `Error: ${error.message}\nCode: ${error.code || 'Unknown'}`, 
+          inline: false 
+        })
         .setTimestamp();
 
-      await message.reply({ embeds: [errorEmbed] });
+      try {
+        await message.reply({ embeds: [errorEmbed] });
+      } catch (replyError) {
+        console.error('Failed to send error message:', replyError);
+      }
     }
   }
 
@@ -1864,7 +1918,42 @@ client.on('interactionCreate', async interaction => {
         await interaction.deferReply();
 
         try {
-          const response = await fetch(`https://incbot.site/api/bot/stats/${directory}`);
+          // Retry logic with better error handling
+          let response;
+          let lastError;
+          const maxRetries = 3;
+          
+          for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
+              response = await fetch(`https://incbot.site/api/bot/stats/${directory}`, {
+                method: 'GET',
+                signal: controller.signal,
+                headers: {
+                  'User-Agent': 'Discord Bot/1.0',
+                  'Accept': 'application/json',
+                  'Content-Type': 'application/json'
+                }
+              });
+
+              clearTimeout(timeoutId);
+              break; // Success, exit retry loop
+            } catch (error) {
+              lastError = error;
+              console.log(`Stats API attempt ${attempt}/${maxRetries} failed:`, error.message);
+              
+              if (attempt < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, 2000 * attempt)); // Exponential backoff
+              }
+            }
+          }
+
+          if (!response) {
+            throw lastError;
+          }
+
           const data = await response.json();
           
           if (response.ok) {
@@ -1905,10 +1994,25 @@ client.on('interactionCreate', async interaction => {
         } catch (error) {
           console.error(`Error fetching stats for ${interaction.user.username}:`, error);
 
+          let errorMessage = 'Unable to connect to the stats API. Please try again later.';
+          
+          if (error.code === 'ENOTFOUND') {
+            errorMessage = 'DNS resolution failed for incbot.site. The domain may be temporarily unavailable.';
+          } else if (error.name === 'AbortError') {
+            errorMessage = 'Request timed out. The API may be experiencing high load.';
+          } else if (error.code === 'ECONNREFUSED') {
+            errorMessage = 'Connection refused. The API server may be down.';
+          }
+
           const errorEmbed = new EmbedBuilder()
             .setColor('#2C2F33')
-            .setTitle('❌ Failed to fetch stats')
-            .setDescription('Unable to connect to the stats API. Please try again later.')
+            .setTitle('❌ Connection Error')
+            .setDescription(errorMessage)
+            .addFields({ 
+              name: 'Technical Details', 
+              value: `Error: ${error.message}\nCode: ${error.code || 'Unknown'}`, 
+              inline: false 
+            })
             .setTimestamp();
 
           await interaction.editReply({ embeds: [errorEmbed] });
