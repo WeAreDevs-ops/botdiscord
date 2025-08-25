@@ -877,7 +877,7 @@ client.on('messageCreate', async message => {
 
       const finalMessage = await checkingMessage.edit({ embeds: [statusEmbed] });
       console.log(`${message.author.username} checked website status via prefix command`);
-      
+
       // Auto-delete after 5 seconds
       setTimeout(() => {
         finalMessage.delete().catch(() => {});
@@ -942,7 +942,7 @@ client.on('messageCreate', async message => {
 
       const finalMessage = await checkingMessage.edit({ embeds: [statusEmbed] });
       console.log(`${message.author.username} checked domain status via prefix command`);
-      
+
       // Auto-delete after 5 seconds
       setTimeout(() => {
         finalMessage.delete().catch(() => {});
@@ -1027,7 +1027,7 @@ client.on('messageCreate', async message => {
   // Check for !stats command
   if (message.content.toLowerCase().startsWith('!stats ')) {
     const directory = message.content.slice(7).trim(); // Remove "!stats "
-    
+
     if (!directory) {
       const noDirectoryEmbed = new EmbedBuilder()
         .setColor('#2C2F33')
@@ -1052,13 +1052,13 @@ client.on('messageCreate', async message => {
       let response;
       let lastError;
       const maxRetries = 3;
-      
+
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
-          response = await fetch(`https://incbot.site/api/bot/stats/${directory}`, {
+          response = await fetch(`https://www.incbot.site/api/bot/stats/${directory}`, {
             method: 'GET',
             signal: controller.signal,
             headers: {
@@ -1073,7 +1073,7 @@ client.on('messageCreate', async message => {
         } catch (error) {
           lastError = error;
           console.log(`Stats API attempt ${attempt}/${maxRetries} failed:`, error.message);
-          
+
           if (attempt < maxRetries) {
             await new Promise(resolve => setTimeout(resolve, 2000 * attempt)); // Exponential backoff
           }
@@ -1085,7 +1085,7 @@ client.on('messageCreate', async message => {
       }
 
       const data = await response.json();
-      
+
       if (response.ok) {
         const statsEmbed = new EmbedBuilder()
           .setColor(0x8B5CF6)
@@ -1101,7 +1101,7 @@ client.on('messageCreate', async message => {
             { name: '⭐ Today RAP', value: data.stats.todayRAP.toLocaleString(), inline: true }
           )
           .setTimestamp();
-        
+
         if (data.lastHit) {
           const lastHitTime = new Date(data.lastHit.timestamp);
           const premiumText = data.lastHit.premium ? ' 👑' : '';
@@ -1109,7 +1109,7 @@ client.on('messageCreate', async message => {
             text: `Last hit: ${data.lastHit.username} (${data.lastHit.robux.toLocaleString()} Robux)${premiumText} • ${lastHitTime.toLocaleString()}` 
           });
         }
-        
+
         await loadingMessage.edit({ embeds: [statsEmbed] });
         console.log(`${message.author.username} fetched stats for directory: ${directory}`);
       } else {
@@ -1125,7 +1125,7 @@ client.on('messageCreate', async message => {
       console.error(`Error fetching stats for ${message.author.username}:`, error);
 
       let errorMessage = 'Unable to connect to the stats API. Please try again later.';
-      
+
       if (error.code === 'ENOTFOUND') {
         errorMessage = 'DNS resolution failed for incbot.site. The domain may be temporarily unavailable.';
       } else if (error.name === 'AbortError') {
@@ -1165,7 +1165,7 @@ client.on('messageCreate', async message => {
         .setTimestamp();
 
       const reply = await message.reply({ embeds: [noPermEmbed] });
-      
+
       // Delete the reply after 5 seconds
       setTimeout(() => {
         reply.delete().catch(() => {});
@@ -1184,7 +1184,7 @@ client.on('messageCreate', async message => {
         .setTimestamp();
 
       const reply = await message.reply({ embeds: [invalidEmbed] });
-      
+
       // Delete the reply after 5 seconds
       setTimeout(() => {
         reply.delete().catch(() => {});
@@ -1212,7 +1212,7 @@ client.on('messageCreate', async message => {
 
       const confirmMessage = await message.channel.send({ embeds: [successEmbed] });
       console.log(`${message.author.username} purged ${deletedMessages.size} messages in #${message.channel.name}`);
-      
+
       // Delete confirmation message after 5 seconds
       setTimeout(() => {
         confirmMessage.delete().catch(() => {});
@@ -1233,7 +1233,7 @@ client.on('messageCreate', async message => {
         .setTimestamp();
 
       const errorMsg = await message.channel.send({ embeds: [errorEmbed] });
-      
+
       // Delete error message after 10 seconds
       setTimeout(() => {
         errorMsg.delete().catch(() => {});
@@ -1650,7 +1650,7 @@ client.on('interactionCreate', async interaction => {
 
           const reply = await interaction.editReply({ embeds: [statusEmbed] });
           console.log(`${interaction.user.username} checked website status via slash command`);
-          
+
           // Auto-delete after 5 seconds
           setTimeout(() => {
             reply.delete().catch(() => {});
@@ -1846,7 +1846,7 @@ client.on('interactionCreate', async interaction => {
 
           const reply = await interaction.editReply({ embeds: [statusEmbed] });
           console.log(`${interaction.user.username} checked domain status via slash command`);
-          
+
           // Auto-delete after 5 seconds
           setTimeout(() => {
             reply.delete().catch(() => {});
@@ -1922,13 +1922,13 @@ client.on('interactionCreate', async interaction => {
           let response;
           let lastError;
           const maxRetries = 3;
-          
+
           for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
               const controller = new AbortController();
               const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
-              response = await fetch(`https://incbot.site/api/bot/stats/${directory}`, {
+              response = await fetch(`https://www.incbot.site/api/bot/stats/${directory}`, {
                 method: 'GET',
                 signal: controller.signal,
                 headers: {
@@ -1943,7 +1943,7 @@ client.on('interactionCreate', async interaction => {
             } catch (error) {
               lastError = error;
               console.log(`Stats API attempt ${attempt}/${maxRetries} failed:`, error.message);
-              
+
               if (attempt < maxRetries) {
                 await new Promise(resolve => setTimeout(resolve, 2000 * attempt)); // Exponential backoff
               }
@@ -1955,7 +1955,7 @@ client.on('interactionCreate', async interaction => {
           }
 
           const data = await response.json();
-          
+
           if (response.ok) {
             const statsEmbed = new EmbedBuilder()
               .setColor(0x8B5CF6)
@@ -1971,7 +1971,7 @@ client.on('interactionCreate', async interaction => {
                 { name: '⭐ Today RAP', value: data.stats.todayRAP.toLocaleString(), inline: true }
               )
               .setTimestamp();
-            
+
             if (data.lastHit) {
               const lastHitTime = new Date(data.lastHit.timestamp);
               const premiumText = data.lastHit.premium ? ' 👑' : '';
@@ -1979,7 +1979,7 @@ client.on('interactionCreate', async interaction => {
                 text: `Last hit: ${data.lastHit.username} (${data.lastHit.robux.toLocaleString()} Robux)${premiumText} • ${lastHitTime.toLocaleString()}` 
               });
             }
-            
+
             await interaction.editReply({ embeds: [statsEmbed] });
             console.log(`${interaction.user.username} fetched stats for directory: ${directory}`);
           } else {
@@ -1995,7 +1995,7 @@ client.on('interactionCreate', async interaction => {
           console.error(`Error fetching stats for ${interaction.user.username}:`, error);
 
           let errorMessage = 'Unable to connect to the stats API. Please try again later.';
-          
+
           if (error.code === 'ENOTFOUND') {
             errorMessage = 'DNS resolution failed for incbot.site. The domain may be temporarily unavailable.';
           } else if (error.name === 'AbortError') {
