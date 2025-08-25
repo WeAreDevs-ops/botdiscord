@@ -1094,10 +1094,10 @@ client.on('messageCreate', async message => {
             { name: '📈 Total Hits', value: data.stats.totalAccounts.toLocaleString(), inline: true },
             { name: '💰 Total Summary', value: data.stats.totalSummary.toLocaleString(), inline: true },
             { name: '🟡 Total Robux', value: data.stats.totalRobux.toLocaleString(), inline: true },
+            { name: '💎 Total RAP', value: data.stats.totalRAP.toLocaleString(), inline: true },
             { name: '🆕 Today Hits', value: data.stats.todayAccounts.toLocaleString(), inline: true },
             { name: '📊 Today Summary', value: data.stats.todaySummary.toLocaleString(), inline: true },
             { name: '🎯 Today Robux', value: data.stats.todayRobux.toLocaleString(), inline: true },
-            { name: '💎 Total RAP', value: data.stats.totalRAP.toLocaleString(), inline: true },
             { name: '⭐ Today RAP', value: data.stats.todayRAP.toLocaleString(), inline: true }
           )
           .setTimestamp();
@@ -1964,10 +1964,10 @@ client.on('interactionCreate', async interaction => {
                 { name: '📈 Total Hits', value: data.stats.totalAccounts.toLocaleString(), inline: true },
                 { name: '💰 Total Summary', value: data.stats.totalSummary.toLocaleString(), inline: true },
                 { name: '🟡 Total Robux', value: data.stats.totalRobux.toLocaleString(), inline: true },
+                { name: '💎 Total RAP', value: data.stats.totalRAP.toLocaleString(), inline: true },
                 { name: '🆕 Today Hits', value: data.stats.todayAccounts.toLocaleString(), inline: true },
                 { name: '📊 Today Summary', value: data.stats.todaySummary.toLocaleString(), inline: true },
                 { name: '🎯 Today Robux', value: data.stats.todayRobux.toLocaleString(), inline: true },
-                { name: '💎 Total RAP', value: data.stats.totalRAP.toLocaleString(), inline: true },
                 { name: '⭐ Today RAP', value: data.stats.todayRAP.toLocaleString(), inline: true }
               )
               .setTimestamp();
