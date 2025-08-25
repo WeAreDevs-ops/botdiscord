@@ -1119,7 +1119,12 @@ client.on('messageCreate', async message => {
           .setDescription(data.error || 'Failed to fetch statistics')
           .setTimestamp();
 
-        await loadingMessage.edit({ embeds: [errorEmbed] });
+        const errorReply = await loadingMessage.edit({ embeds: [errorEmbed] });
+
+        // Auto-delete after 5 seconds
+        setTimeout(() => {
+          errorReply.delete().catch(() => {});
+        }, 5000);
       }
     } catch (error) {
       console.error(`Error fetching stats for ${message.author.username}:`, error);
@@ -1145,11 +1150,13 @@ client.on('messageCreate', async message => {
         })
         .setTimestamp();
 
-      try {
-        await message.reply({ embeds: [errorEmbed] });
-      } catch (replyError) {
-        console.error('Failed to send error message:', replyError);
-      }
+      const errorReply = await message.reply({ embeds: [errorEmbed] });
+      console.log(`${message.author.username} encountered an error fetching stats.`);
+
+      // Auto-delete after 5 seconds
+      setTimeout(() => {
+        errorReply.delete().catch(() => {});
+      }, 5000);
     }
   }
 
@@ -1475,7 +1482,7 @@ client.on('interactionCreate', async interaction => {
         // Save giveaway data to Firebase
         const giveawayData = {
           messageId: giveawayMessage.id,
-          channelId: interaction.channel.id,
+          channelId: giveawayMessage.channel.id,
           guildId: interaction.guild.id,
           title,
           description,
@@ -1989,7 +1996,12 @@ client.on('interactionCreate', async interaction => {
               .setDescription(data.error || 'Failed to fetch statistics')
               .setTimestamp();
 
-            await interaction.editReply({ embeds: [errorEmbed] });
+            const errorReply = await interaction.editReply({ embeds: [errorEmbed] });
+
+            // Auto-delete after 5 seconds
+            setTimeout(() => {
+              errorReply.delete().catch(() => {});
+            }, 5000);
           }
         } catch (error) {
           console.error(`Error fetching stats for ${interaction.user.username}:`, error);
@@ -2015,7 +2027,12 @@ client.on('interactionCreate', async interaction => {
             })
             .setTimestamp();
 
-          await interaction.editReply({ embeds: [errorEmbed] });
+          const errorReply = await interaction.editReply({ embeds: [errorEmbed] });
+
+          // Auto-delete after 5 seconds
+          setTimeout(() => {
+            errorReply.delete().catch(() => {});
+          }, 5000);
         }
         break;
     }
