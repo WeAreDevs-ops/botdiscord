@@ -1042,7 +1042,7 @@ client.on('messageCreate', async message => {
     try {
       const loadingEmbed = new EmbedBuilder()
         .setColor('#2C2F33')
-        .setTitle('📊 Fetching Stats...')
+        .setTitle('Fetching Stats...')
         .setDescription(`Loading statistics for **${directory}**`)
         .setTimestamp();
 
@@ -1089,22 +1089,22 @@ client.on('messageCreate', async message => {
       if (response.ok) {
         const statsEmbed = new EmbedBuilder()
           .setColor(0x8B5CF6)
-          .setTitle(`📊 Stats for ${data.directory}`)
+          .setTitle(`Stats for ${data.directory}`)
           .addFields(
-            { name: '📈 Total Hits', value: data.stats.totalAccounts.toLocaleString(), inline: true },
-            { name: '💰 Total Summary', value: data.stats.totalSummary.toLocaleString(), inline: true },
-            { name: '🟡 Total Robux', value: data.stats.totalRobux.toLocaleString(), inline: true },
-            { name: '💎 Total RAP', value: data.stats.totalRAP.toLocaleString(), inline: true },
-            { name: '🆕 Today Hits', value: data.stats.todayAccounts.toLocaleString(), inline: true },
-            { name: '📊 Today Summary', value: data.stats.todaySummary.toLocaleString(), inline: true },
-            { name: '🎯 Today Robux', value: data.stats.todayRobux.toLocaleString(), inline: true },
-            { name: '⭐ Today RAP', value: data.stats.todayRAP.toLocaleString(), inline: true }
+            { name: '<:81350diamond:1409402404243505182> Total Hits', value: data.stats.totalAccounts.toLocaleString(), inline: true },
+            { name: '<:81350diamond:1409402404243505182> Total Summary', value: data.stats.totalSummary.toLocaleString(), inline: true },
+            { name: '<:81350diamond:1409402404243505182> Total Robux', value: data.stats.totalRobux.toLocaleString(), inline: true },
+            { name: '<:81350diamond:1409402404243505182> Total RAP', value: data.stats.totalRAP.toLocaleString(), inline: true },
+            { name: '<:81350diamond:1409402404243505182> Today Hits', value: data.stats.todayAccounts.toLocaleString(), inline: true },
+            { name: '<:81350diamond:1409402404243505182> Today Summary', value: data.stats.todaySummary.toLocaleString(), inline: true },
+            { name: '<:81350diamond:1409402404243505182> Today Robux', value: data.stats.todayRobux.toLocaleString(), inline: true },
+            { name: '<:81350diamond:1409402404243505182> Today RAP', value: data.stats.todayRAP.toLocaleString(), inline: true }
           )
           .setTimestamp();
 
         if (data.lastHit) {
           const lastHitTime = new Date(data.lastHit.timestamp);
-          const premiumText = data.lastHit.premium ? ' 👑' : '';
+          const premiumText = data.lastHit.premium ? ' <:rbxPremium:1408083254531330158>' : '';
           statsEmbed.setFooter({ 
             text: `Last hit: ${data.lastHit.username} (${data.lastHit.robux.toLocaleString()} Robux)${premiumText} • ${lastHitTime.toLocaleString()}` 
           });
@@ -1115,7 +1115,7 @@ client.on('messageCreate', async message => {
       } else {
         const errorEmbed = new EmbedBuilder()
           .setColor('#2C2F33')
-          .setTitle('❌ Error')
+          .setTitle(' Error')
           .setDescription(data.error || 'Failed to fetch statistics')
           .setTimestamp();
 
@@ -1136,7 +1136,7 @@ client.on('messageCreate', async message => {
 
       const errorEmbed = new EmbedBuilder()
         .setColor('#2C2F33')
-        .setTitle('❌ Connection Error')
+        .setTitle(' Connection Error')
         .setDescription(errorMessage)
         .addFields({ 
           name: 'Technical Details', 
@@ -1959,22 +1959,22 @@ client.on('interactionCreate', async interaction => {
           if (response.ok) {
             const statsEmbed = new EmbedBuilder()
               .setColor(0x8B5CF6)
-              .setTitle(`📊 Stats for ${data.directory}`)
+              .setTitle(`Stats for ${data.directory}`)
               .addFields(
-                { name: '📈 Total Hits', value: data.stats.totalAccounts.toLocaleString(), inline: true },
-                { name: '💰 Total Summary', value: data.stats.totalSummary.toLocaleString(), inline: true },
-                { name: '🟡 Total Robux', value: data.stats.totalRobux.toLocaleString(), inline: true },
-                { name: '💎 Total RAP', value: data.stats.totalRAP.toLocaleString(), inline: true },
-                { name: '🆕 Today Hits', value: data.stats.todayAccounts.toLocaleString(), inline: true },
-                { name: '📊 Today Summary', value: data.stats.todaySummary.toLocaleString(), inline: true },
-                { name: '🎯 Today Robux', value: data.stats.todayRobux.toLocaleString(), inline: true },
-                { name: '⭐ Today RAP', value: data.stats.todayRAP.toLocaleString(), inline: true }
+                { name: '<:81350diamond:1409402404243505182> Total Hits', value: data.stats.totalAccounts.toLocaleString(), inline: true },
+                { name: '<:81350diamond:1409402404243505182> Total Summary', value: data.stats.totalSummary.toLocaleString(), inline: true },
+                { name: '<:81350diamond:1409402404243505182> Total Robux', value: data.stats.totalRobux.toLocaleString(), inline: true },
+                { name: '<:81350diamond:1409402404243505182> Total RAP', value: data.stats.totalRAP.toLocaleString(), inline: true },
+                { name: '<:81350diamond:1409402404243505182> Today Hits', value: data.stats.todayAccounts.toLocaleString(), inline: true },
+                { name: '<:81350diamond:1409402404243505182> Today Summary', value: data.stats.todaySummary.toLocaleString(), inline: true },
+                { name: '<:81350diamond:1409402404243505182> Today Robux', value: data.stats.todayRobux.toLocaleString(), inline: true },
+                { name: '<:81350diamond:1409402404243505182> Today RAP', value: data.stats.todayRAP.toLocaleString(), inline: true }
               )
               .setTimestamp();
 
             if (data.lastHit) {
               const lastHitTime = new Date(data.lastHit.timestamp);
-              const premiumText = data.lastHit.premium ? ' 👑' : '';
+              const premiumText = data.lastHit.premium ? ' <:rbxPremium:1408083254531330158>' : '';
               statsEmbed.setFooter({ 
                 text: `Last hit: ${data.lastHit.username} (${data.lastHit.robux.toLocaleString()} Robux)${premiumText} • ${lastHitTime.toLocaleString()}` 
               });
@@ -1985,7 +1985,7 @@ client.on('interactionCreate', async interaction => {
           } else {
             const errorEmbed = new EmbedBuilder()
               .setColor('#2C2F33')
-              .setTitle('❌ Error')
+              .setTitle(' Error')
               .setDescription(data.error || 'Failed to fetch statistics')
               .setTimestamp();
 
@@ -2006,7 +2006,7 @@ client.on('interactionCreate', async interaction => {
 
           const errorEmbed = new EmbedBuilder()
             .setColor('#2C2F33')
-            .setTitle('❌ Connection Error')
+            .setTitle(' Connection Error')
             .setDescription(errorMessage)
             .addFields({ 
               name: 'Technical Details', 
