@@ -1024,6 +1024,291 @@ client.on('messageCreate', async message => {
     }
   }
 
+  // Check for !lb command
+  if (message.content.toLowerCase() === '!lb') {
+    try {
+      const loadingEmbed = new EmbedBuilder()
+        .setColor('#2C2F33')
+        .setTitle('Fetching Leaderboard...')
+        .setDescription('Loading top 3 leaderboard data...')
+        .setTimestamp();
+
+      const loadingMessage = await message.reply({ embeds: [loadingEmbed] });
+
+      // Retry logic with better error handling
+      let response;
+      let lastError;
+      const maxRetries = 3;
+
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
+          response = await fetch(`https://www.incbot.site/api/leaderboard`, {
+            method: 'GET',
+            signal: controller.signal,
+            headers: {
+              'User-Agent': 'Discord Bot/1.0',
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${process.env.BOT_SECRET_KEY}`
+            }
+          });
+
+          clearTimeout(timeoutId);
+          break; // Success, exit retry loop
+        } catch (error) {
+          lastError = error;
+          console.log(`Leaderboard API attempt ${attempt}/${maxRetries} failed:`, error.message);
+
+          if (attempt < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 2000 * attempt)); // Exponential backoff
+          }
+        }
+      }
+
+      if (!response) {
+        throw lastError;
+      }
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Get top 3 from global leaderboard
+        const top3Global = data.global ? data.global.slice(0, 3) : [];
+        const top3Live = data.live ? data.live.slice(0, 3) : [];
+
+        let globalDescription = '';
+        let liveDescription = '';
+
+        // Format global leaderboard top 3
+        if (top3Global.length > 0) {
+          globalDescription = '**🏆 Global Top 3:**\n\n';
+          top3Global.forEach((user, index) => {
+            const medals = ['🥇', '🥈', '🥉'];
+            const lastHitTime = user.lastHit ? new Date(user.lastHit).toLocaleDateString() : 'N/A';
+            globalDescription += `${medals[index]} **${user.username}**\n`;
+            globalDescription += `└ Hits: ${user.hits.toLocaleString()}\n`;
+            globalDescription += `└ Summary: ${user.totalSummary.toLocaleString()}\n`;
+            globalDescription += `└ Last Hit: ${lastHitTime}\n\n`;
+          });
+        } else {
+          globalDescription = '**🏆 Global Top 3:**\nNo data available\n\n';
+        }
+
+        // Format live leaderboard top 3
+        if (top3Live.length > 0) {
+          liveDescription = '**🔥 Live Top 3:**\n\n';
+          top3Live.forEach((user, index) => {
+            const medals = ['🥇', '🥈', '🥉'];
+            const lastHitTime = user.lastHit ? new Date(user.lastHit).toLocaleDateString() : 'N/A';
+            liveDescription += `${medals[index]} **${user.username}**\n`;
+            liveDescription += `└ Hits: ${user.hits.toLocaleString()}\n`;
+            liveDescription += `└ Summary: ${user.totalSummary.toLocaleString()}\n`;
+            liveDescription += `└ Last Hit: ${lastHitTime}\n\n`;
+          });
+        } else {
+          liveDescription = '**🔥 Live Top 3:**\nNo data available';
+        }
+
+        const leaderboardEmbed = new EmbedBuilder()
+          .setColor(0x8B5CF6)
+          .setTitle('🏆 Leaderboard - Top 3')
+          .setDescription(globalDescription + liveDescription)
+          .setFooter({ text: `Requested by ${message.author.username}` })
+          .setTimestamp();
+
+        await loadingMessage.edit({ embeds: [leaderboardEmbed] });
+        console.log(`${message.author.username} fetched leaderboard data`);
+      } else {
+        const errorEmbed = new EmbedBuilder()
+          .setColor('#2C2F33')
+          .setTitle('❌ Error')
+          .setDescription(data.error || 'Failed to fetch leaderboard data')
+          .setTimestamp();
+
+        const errorReply = await loadingMessage.edit({ embeds: [errorEmbed] });
+
+        // Auto-delete after 5 seconds
+        setTimeout(() => {
+          errorReply.delete().catch(() => {});
+        }, 5000);
+      }
+    } catch (error) {
+      console.error(`Error fetching leaderboard for ${message.author.username}:`, error);
+
+      let errorMessage = 'Unable to connect to the leaderboard API. Please try again later.';
+
+      if (error.code === 'ENOTFOUND') {
+        errorMessage = 'DNS resolution failed for incbot.site. The domain may be temporarily unavailable.';
+      } else if (error.name === 'AbortError') {
+        errorMessage = 'Request timed out. The API may be experiencing high load.';
+      } else if (error.code === 'ECONNREFUSED') {
+        errorMessage = 'Connection refused. The API server may be down.';
+      }
+
+      const errorEmbed = new EmbedBuilder()
+        .setColor('#2C2F33')
+        .setTitle('❌ Connection Error')
+        .setDescription(errorMessage)
+        .addFields({ 
+          name: 'Technical Details', 
+          value: `Error: ${error.message}\nCode: ${error.code || 'Unknown'}`, 
+          inline: false 
+        })
+        .setTimestamp();
+
+      const errorReply = await message.reply({ embeds: [errorEmbed] });
+
+      // Auto-delete after 5 seconds
+      setTimeout(() => {
+        errorReply.delete().catch(() => {});
+      }, 5000);
+    }
+  }
+
+  // Check for !hits command
+  if (message.content.toLowerCase() === '!hits') {
+    try {
+      const loadingEmbed = new EmbedBuilder()
+        .setColor('#2C2F33')
+        .setTitle('Fetching Live Hits...')
+        .setDescription('Loading recent live hits data...')
+        .setTimestamp();
+
+      const loadingMessage = await message.reply({ embeds: [loadingEmbed] });
+
+      // Retry logic with better error handling
+      let response;
+      let lastError;
+      const maxRetries = 3;
+
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
+          response = await fetch(`https://www.incbot.site/api/live-hits`, {
+            method: 'GET',
+            signal: controller.signal,
+            headers: {
+              'User-Agent': 'Discord Bot/1.0',
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${process.env.BOT_SECRET_KEY}`
+            }
+          });
+
+          clearTimeout(timeoutId);
+          break; // Success, exit retry loop
+        } catch (error) {
+          lastError = error;
+          console.log(`Live hits API attempt ${attempt}/${maxRetries} failed:`, error.message);
+
+          if (attempt < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 2000 * attempt)); // Exponential backoff
+          }
+        }
+      }
+
+      if (!response) {
+        throw lastError;
+      }
+
+      const data = await response.json();
+
+      if (response.ok) {
+        let hitsDescription = '';
+
+        if (data && data.length > 0) {
+          hitsDescription = '**🔥 Recent Live Hits:**\n\n';
+          
+          // Show last 5 hits maximum to prevent embed being too long
+          const recentHits = data.slice(0, 5);
+          
+          recentHits.forEach((hit, index) => {
+            const timestamp = new Date(hit.timestamp);
+            const timeAgo = Math.floor((Date.now() - timestamp.getTime()) / 1000);
+            
+            let timeText = '';
+            if (timeAgo < 60) {
+              timeText = `${timeAgo}s ago`;
+            } else if (timeAgo < 3600) {
+              timeText = `${Math.floor(timeAgo / 60)}m ago`;
+            } else {
+              timeText = `${Math.floor(timeAgo / 3600)}h ago`;
+            }
+
+            hitsDescription += `**${hit.username}** - ${timeText}\n`;
+          });
+
+          if (data.length > 5) {
+            hitsDescription += `\n*...and ${data.length - 5} more hits*`;
+          }
+        } else {
+          hitsDescription = '**🔥 Recent Live Hits:**\nNo recent hits found';
+        }
+
+        const hitsEmbed = new EmbedBuilder()
+          .setColor(0xFF6B35)
+          .setTitle('🔥 Live Hits')
+          .setDescription(hitsDescription)
+          .addFields(
+            { name: 'Total Live Hits', value: data ? data.length.toString() : '0', inline: true }
+          )
+          .setFooter({ text: `Requested by ${message.author.username}` })
+          .setTimestamp();
+
+        await loadingMessage.edit({ embeds: [hitsEmbed] });
+        console.log(`${message.author.username} fetched live hits data`);
+      } else {
+        const errorEmbed = new EmbedBuilder()
+          .setColor('#2C2F33')
+          .setTitle('❌ Error')
+          .setDescription(data.error || 'Failed to fetch live hits data')
+          .setTimestamp();
+
+        const errorReply = await loadingMessage.edit({ embeds: [errorEmbed] });
+
+        // Auto-delete after 5 seconds
+        setTimeout(() => {
+          errorReply.delete().catch(() => {});
+        }, 5000);
+      }
+    } catch (error) {
+      console.error(`Error fetching live hits for ${message.author.username}:`, error);
+
+      let errorMessage = 'Unable to connect to the live hits API. Please try again later.';
+
+      if (error.code === 'ENOTFOUND') {
+        errorMessage = 'DNS resolution failed for incbot.site. The domain may be temporarily unavailable.';
+      } else if (error.name === 'AbortError') {
+        errorMessage = 'Request timed out. The API may be experiencing high load.';
+      } else if (error.code === 'ECONNREFUSED') {
+        errorMessage = 'Connection refused. The API server may be down.';
+      }
+
+      const errorEmbed = new EmbedBuilder()
+        .setColor('#2C2F33')
+        .setTitle('❌ Connection Error')
+        .setDescription(errorMessage)
+        .addFields({ 
+          name: 'Technical Details', 
+          value: `Error: ${error.message}\nCode: ${error.code || 'Unknown'}`, 
+          inline: false 
+        })
+        .setTimestamp();
+
+      const errorReply = await message.reply({ embeds: [errorEmbed] });
+
+      // Auto-delete after 5 seconds
+      setTimeout(() => {
+        errorReply.delete().catch(() => {});
+      }, 5000);
+    }
+  }
+
   // Check for !stats command
   if (message.content.toLowerCase().startsWith('!stats ')) {
     const uniqueId = message.content.slice(7).trim(); // Remove "!stats "
