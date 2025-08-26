@@ -1077,10 +1077,8 @@ client.on('messageCreate', async message => {
       if (response.ok) {
         // Get top 3 from global leaderboard
         const top3Global = data.global ? data.global.slice(0, 3) : [];
-        const top3Live = data.live ? data.live.slice(0, 3) : [];
 
         let globalDescription = '';
-        let liveDescription = '';
 
         // Format global leaderboard top 3
         if (top3Global.length > 0) {
@@ -1094,28 +1092,13 @@ client.on('messageCreate', async message => {
             globalDescription += `└ Last Hit: ${lastHitTime}\n\n`;
           });
         } else {
-          globalDescription = '**🏆 Global Top 3:**\nNo data available\n\n';
-        }
-
-        // Format live leaderboard top 3
-        if (top3Live.length > 0) {
-          liveDescription = '**🔥 Live Top 3:**\n\n';
-          top3Live.forEach((user, index) => {
-            const medals = ['🥇', '🥈', '🥉'];
-            const lastHitTime = user.lastHit ? new Date(user.lastHit).toLocaleDateString() : 'N/A';
-            liveDescription += `${medals[index]} **${user.username}**\n`;
-            liveDescription += `└ Hits: ${user.hits.toLocaleString()}\n`;
-            liveDescription += `└ Summary: ${user.totalSummary.toLocaleString()}\n`;
-            liveDescription += `└ Last Hit: ${lastHitTime}\n\n`;
-          });
-        } else {
-          liveDescription = '**🔥 Live Top 3:**\nNo data available';
+          globalDescription = '**🏆 Global Top 3:**\nNo data available';
         }
 
         const leaderboardEmbed = new EmbedBuilder()
           .setColor(0x8B5CF6)
           .setTitle('🏆 Leaderboard - Top 3')
-          .setDescription(globalDescription + liveDescription)
+          .setDescription(globalDescription)
           .setFooter({ text: `Requested by ${message.author.username}` })
           .setTimestamp();
 
