@@ -1097,7 +1097,7 @@ client.on('messageCreate', async message => {
 
         const leaderboardEmbed = new EmbedBuilder()
           .setColor(0x8B5CF6)
-          .setTitle('Leaderboard - Top 3')
+          .setTitle('Leaderboard')
           .setDescription(globalDescription)
           .setFooter({ text: `Requested by ${message.author.username}` })
           .setTimestamp();
