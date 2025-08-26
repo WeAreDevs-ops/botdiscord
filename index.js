@@ -1234,7 +1234,7 @@ client.on('messageCreate', async message => {
         }
 
         const hitsEmbed = new EmbedBuilder()
-          .setColor(0xFF6B35)
+          .setColor(0x8B5CF6)
           .setTitle('Live Hits')
           .setDescription(hitsDescription)
           .setFooter({ text: `Requested by ${message.author.username}` })
@@ -1357,14 +1357,14 @@ client.on('messageCreate', async message => {
           .setColor(0x8B5CF6)
           .setTitle(`Stats for ${data.uniqueId || uniqueId}`)
           .addFields(
-            { name: '<:81350diamond:1409402404243505182> Total Hits', value: data.stats.totalAccounts.toLocaleString(), inline: true },
-            { name: '<:81350diamond:1409402404243505182> Total Summary', value: data.stats.totalSummary.toLocaleString(), inline: true },
-            { name: '<:81350diamond:1409402404243505182> Total Robux', value: data.stats.totalRobux.toLocaleString(), inline: true },
-            { name: '<:81350diamond:1409402404243505182> Total RAP', value: data.stats.totalRAP.toLocaleString(), inline: true },
-            { name: '<:81350diamond:1409402404243505182> Today Hits', value: data.stats.todayAccounts.toLocaleString(), inline: true },
-            { name: '<:81350diamond:1409402404243505182> Today Summary', value: data.stats.todaySummary.toLocaleString(), inline: true },
-            { name: '<:81350diamond:1409402404243505182> Today Robux', value: data.stats.todayRobux.toLocaleString(), inline: true },
-            { name: '<:81350diamond:1409402404243505182> Today RAP', value: data.stats.todayRAP.toLocaleString(), inline: true }
+            { name: '<a:emoji_25:1409704535869362236> Total Hits', value: data.stats.totalAccounts.toLocaleString(), inline: true },
+            { name: '<a:emoji_25:1409704535869362236> Total Summary', value: data.stats.totalSummary.toLocaleString(), inline: true },
+            { name: '<a:emoji_25:1409704535869362236> Total Robux', value: data.stats.totalRobux.toLocaleString(), inline: true },
+            { name: '<a:emoji_25:1409704535869362236> Total RAP', value: data.stats.totalRAP.toLocaleString(), inline: true },
+            { name: '<a:emoji_25:1409704535869362236> Today Hits', value: data.stats.todayAccounts.toLocaleString(), inline: true },
+            { name: '<a:emoji_25:1409704535869362236> Today Summary', value: data.stats.todaySummary.toLocaleString(), inline: true },
+            { name: '<a:emoji_25:1409704535869362236> Today Robux', value: data.stats.todayRobux.toLocaleString(), inline: true },
+            { name: '<a:emoji_25:1409704535869362236> Today RAP', value: data.stats.todayRAP.toLocaleString(), inline: true }
           )
           .setTimestamp();
 
@@ -2235,14 +2235,14 @@ client.on('interactionCreate', async interaction => {
               .setColor(0x8B5CF6)
               .setTitle(`Stats for ${data.uniqueId || uniqueId}`)
               .addFields(
-                { name: '<:81350diamond:1409402404243505182> Total Hits', value: data.stats.totalAccounts.toLocaleString(), inline: true },
-                { name: '<:81350diamond:1409402404243505182> Total Summary', value: data.stats.totalSummary.toLocaleString(), inline: true },
-                { name: '<:81350diamond:1409402404243505182> Total Robux', value: data.stats.totalRobux.toLocaleString(), inline: true },
-                { name: '<:81350diamond:1409402404243505182> Total RAP', value: data.stats.totalRAP.toLocaleString(), inline: true },
-                { name: '<:81350diamond:1409402404243505182> Today Hits', value: data.stats.todayAccounts.toLocaleString(), inline: true },
-                { name: '<:81350diamond:1409402404243505182> Today Summary', value: data.stats.todaySummary.toLocaleString(), inline: true },
-                { name: '<:81350diamond:1409402404243505182> Today Robux', value: data.stats.todayRobux.toLocaleString(), inline: true },
-                { name: '<:81350diamond:1409402404243505182> Today RAP', value: data.stats.todayRAP.toLocaleString(), inline: true }
+                { name: '<a:emoji_25:1409704535869362236> Total Hits', value: data.stats.totalAccounts.toLocaleString(), inline: true },
+                { name: '<a:emoji_25:1409704535869362236> Total Summary', value: data.stats.totalSummary.toLocaleString(), inline: true },
+                { name: '<a:emoji_25:1409704535869362236> Total Robux', value: data.stats.totalRobux.toLocaleString(), inline: true },
+                { name: '<a:emoji_25:1409704535869362236> Total RAP', value: data.stats.totalRAP.toLocaleString(), inline: true },
+                { name: '<a:emoji_25:1409704535869362236> Today Hits', value: data.stats.todayAccounts.toLocaleString(), inline: true },
+                { name: '<a:emoji_25:1409704535869362236> Today Summary', value: data.stats.todaySummary.toLocaleString(), inline: true },
+                { name: '<a:emoji_25:1409704535869362236> Today Robux', value: data.stats.todayRobux.toLocaleString(), inline: true },
+                { name: '<a:emoji_25:1409704535869362236> Today RAP', value: data.stats.todayRAP.toLocaleString(), inline: true }
               )
               .setTimestamp();
 
