@@ -1082,22 +1082,22 @@ client.on('messageCreate', async message => {
 
         // Format global leaderboard top 3
         if (top3Global.length > 0) {
-          globalDescription = '**🏆 Global Top 3:**\n\n';
+          globalDescription = '**<:emoji_28:1409704755244306593> Global Top 3:**\n\n';
           top3Global.forEach((user, index) => {
-            const medals = ['🥇', '🥈', '🥉'];
+            const medals = ['<:emoji_26:1409704610469253153>', '<:emoji_27:1409704728035856384>', '<:emoji_27:1409704691226644651>'];
             const lastHitTime = user.lastHit ? new Date(user.lastHit).toLocaleDateString() : 'N/A';
             globalDescription += `${medals[index]} **${user.username}**\n`;
-            globalDescription += `└ Hits: ${user.hits.toLocaleString()}\n`;
-            globalDescription += `└ Summary: ${user.totalSummary.toLocaleString()}\n`;
-            globalDescription += `└ Last Hit: ${lastHitTime}\n\n`;
+            globalDescription += `<a:emoji_25:1409704535869362236> Hits: ${user.hits.toLocaleString()}\n`;
+            globalDescription += `<a:emoji_25:1409704535869362236> Summary: ${user.totalSummary.toLocaleString()}\n`;
+            globalDescription += `<a:emoji_25:1409704535869362236> Last Hit: ${lastHitTime}\n\n`;
           });
         } else {
-          globalDescription = '**🏆 Global Top 3:**\nNo data available';
+          globalDescription = '**<:emoji_28:1409704755244306593> Global Top 3:**\nNo data available';
         }
 
         const leaderboardEmbed = new EmbedBuilder()
           .setColor(0x8B5CF6)
-          .setTitle('🏆 Leaderboard - Top 3')
+          .setTitle('Leaderboard - Top 3')
           .setDescription(globalDescription)
           .setFooter({ text: `Requested by ${message.author.username}` })
           .setTimestamp();
@@ -1205,7 +1205,7 @@ client.on('messageCreate', async message => {
         let hitsDescription = '';
 
         if (data && data.length > 0) {
-          hitsDescription = '**🔥 Recent Live Hits:**\n\n';
+          hitsDescription = '**<:3327live:1409706668027023463> Recent Live Hits:**\n\n';
           
           // Show last 5 hits maximum to prevent embed being too long
           const recentHits = data.slice(0, 5);
@@ -1230,12 +1230,12 @@ client.on('messageCreate', async message => {
             hitsDescription += `\n*...and ${data.length - 5} more hits*`;
           }
         } else {
-          hitsDescription = '**🔥 Recent Live Hits:**\nNo recent hits found';
+          hitsDescription = '**<:3327live:1409706668027023463> Recent Live Hits:**\nNo recent hits found';
         }
 
         const hitsEmbed = new EmbedBuilder()
           .setColor(0xFF6B35)
-          .setTitle('🔥 Live Hits')
+          .setTitle('Live Hits')
           .setDescription(hitsDescription)
           .setFooter({ text: `Requested by ${message.author.username}` })
           .setTimestamp();
