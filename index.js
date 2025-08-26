@@ -1237,9 +1237,6 @@ client.on('messageCreate', async message => {
           .setColor(0xFF6B35)
           .setTitle('🔥 Live Hits')
           .setDescription(hitsDescription)
-          .addFields(
-            { name: 'Total Live Hits', value: data ? data.length.toString() : '0', inline: true }
-          )
           .setFooter({ text: `Requested by ${message.author.username}` })
           .setTimestamp();
 
