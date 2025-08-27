@@ -188,8 +188,8 @@ async function checkWebsiteStatus(url) {
 async function checkMainWebsites() {
   const mainWebsites = [
     'https://www.logged.tg/auth/lunix',
-    'https://app.splunk.gg/u/Lunix',
-    'https://www.pornhub.com'
+    'https://app.splunk.gg/u/Lunix'
+    
   ];
   const results = [];
 
