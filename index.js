@@ -1388,7 +1388,7 @@ client.on('messageCreate', async message => {
       // Check whitelist
       const whitelist = await loadWhitelist();
       if (!whitelist[targetUserId]) {
-        return await message.reply('Failed\nYou\'re not in the database or you are using\ndifferent websites');
+        return await message.reply('<:no:1393890945929318542> No data found or You are using different websites');
       }
 
       const loadingEmbed = new EmbedBuilder()
@@ -1404,7 +1404,7 @@ client.on('messageCreate', async message => {
       if (data) {
         const statsEmbed = new EmbedBuilder()
           .setColor('#2C2F33')
-          .setTitle('Stats2 Results')
+          .setTitle(`Stats for <@${targetUserId}>`)
           .addFields(
             { name: 'Total Hits', value: data.total_hits.toString(), inline: true },
             { name: 'Total Visits', value: data.total_visits.toString(), inline: true },
