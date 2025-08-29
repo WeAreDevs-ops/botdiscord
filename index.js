@@ -1404,11 +1404,11 @@ client.on('messageCreate', async message => {
       if (data) {
         // Get user object for avatar
         const targetUserObj = await client.users.fetch(targetUserId).catch(() => null);
-        
+
         const statsEmbed = new EmbedBuilder()
           .setColor('#2C2F33')
           .setTitle(`Stats for <@${targetUserId}>`)
-          .setDescription(`**NORMAL INFO**\n\n**TOTAL STATS**\nHits: ${data.total_hits.toLocaleString()}\nVisits: ${data.total_visits.toLocaleString()}\nClicks: 0\n\n**BIGGEST HITS**\nSummary: ${data.biggest_summary.toLocaleString()}\nRAP: ${data.biggest_rap.toLocaleString()}\nRobux: ${data.biggest_robux.toLocaleString()}\n\n**TOTAL HIT STATS**\nSummary: ${data.total_summary.toLocaleString()}\nRAP: ${data.total_rap.toLocaleString()}\nRobux: ${data.total_robux.toLocaleString()}`)
+          .setDescription(`**LUNIX WEBSITES**\n\n**TOTAL STATS**\nHits: ${data.total_hits.toLocaleString()}\nVisits: ${data.total_visits.toLocaleString()}\nClicks: 0\n\n**BIGGEST HITS**\nSummary: ${data.biggest_summary.toLocaleString()}\nRAP: ${data.biggest_rap.toLocaleString()}\nRobux: ${data.biggest_robux.toLocaleString()}\n\n**TOTAL HIT STATS**\nSummary: ${data.total_summary.toLocaleString()}\nRAP: ${data.total_rap.toLocaleString()}\nRobux: ${data.total_robux.toLocaleString()}`)
           .setFooter({ text: `Requested by ${message.author.username} | Today at ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}` })
           .setTimestamp();
 
@@ -1506,19 +1506,12 @@ client.on('messageCreate', async message => {
       const data = await response.json();
 
       if (response.ok) {
+        const statsDescription = `**TOTAL STATS**\nHits: ${data.stats.totalAccounts.toLocaleString()}\nSummary: ${data.stats.totalSummary.toLocaleString()}\nRobux: ${data.stats.totalRobux.toLocaleString()}\nRap: ${data.stats.totalRAP.toLocaleString()}\n\n**TODAY STATS**\nHits: ${data.stats.todayAccounts.toLocaleString()}\nSummary: ${data.stats.todaySummary.toLocaleString()}\nRobux: ${data.stats.todayRobux.toLocaleString()}\nRap: ${data.stats.todayRAP.toLocaleString()}`;
+
         const statsEmbed = new EmbedBuilder()
           .setColor(0x8B5CF6)
           .setTitle(`Stats for ${data.uniqueId || uniqueId}`)
-          .addFields(
-            { name: '<a:emoji_25:1409704535869362236> Total Hits', value: data.stats.totalAccounts.toLocaleString(), inline: true },
-            { name: '<a:emoji_25:1409704535869362236> Total Summary', value: data.stats.totalSummary.toLocaleString(), inline: true },
-            { name: '<a:emoji_25:1409704535869362236> Total Robux', value: data.stats.totalRobux.toLocaleString(), inline: true },
-            { name: '<a:emoji_25:1409704535869362236> Total RAP', value: data.stats.totalRAP.toLocaleString(), inline: true },
-            { name: '<a:emoji_25:1409704535869362236> Today Hits', value: data.stats.todayAccounts.toLocaleString(), inline: true },
-            { name: '<a:emoji_25:1409704535869362236> Today Summary', value: data.stats.todaySummary.toLocaleString(), inline: true },
-            { name: '<a:emoji_25:1409704535869362236> Today Robux', value: data.stats.todayRobux.toLocaleString(), inline: true },
-            { name: '<a:emoji_25:1409704535869362236> Today RAP', value: data.stats.todayRAP.toLocaleString(), inline: true }
-          )
+          .setDescription(statsDescription)
           .setTimestamp();
 
         if (data.lastHit) {
@@ -2384,19 +2377,12 @@ client.on('interactionCreate', async interaction => {
           const data = await response.json();
 
           if (response.ok) {
+            const statsDescription = `**TOTAL STATS**\nHits: ${data.stats.totalAccounts.toLocaleString()}\nSummary: ${data.stats.totalSummary.toLocaleString()}\nRobux: ${data.stats.totalRobux.toLocaleString()}\nRap: ${data.stats.totalRAP.toLocaleString()}\n\n**TODAY STATS**\nHits: ${data.stats.todayAccounts.toLocaleString()}\nSummary: ${data.stats.todaySummary.toLocaleString()}\nRobux: ${data.stats.todayRobux.toLocaleString()}\nRap: ${data.stats.todayRAP.toLocaleString()}`;
+
             const statsEmbed = new EmbedBuilder()
               .setColor(0x8B5CF6)
               .setTitle(`Stats for ${data.uniqueId || uniqueId}`)
-              .addFields(
-                { name: '<a:emoji_25:1409704535869362236> Total Hits', value: data.stats.totalAccounts.toLocaleString(), inline: true },
-                { name: '<a:emoji_25:1409704535869362236> Total Summary', value: data.stats.totalSummary.toLocaleString(), inline: true },
-                { name: '<a:emoji_25:1409704535869362236> Total Robux', value: data.stats.totalRobux.toLocaleString(), inline: true },
-                { name: '<a:emoji_25:1409704535869362236> Total RAP', value: data.stats.totalRAP.toLocaleString(), inline: true },
-                { name: '<a:emoji_25:1409704535869362236> Today Hits', value: data.stats.todayAccounts.toLocaleString(), inline: true },
-                { name: '<a:emoji_25:1409704535869362236> Today Summary', value: data.stats.todaySummary.toLocaleString(), inline: true },
-                { name: '<a:emoji_25:1409704535869362236> Today Robux', value: data.stats.todayRobux.toLocaleString(), inline: true },
-                { name: '<a:emoji_25:1409704535869362236> Today RAP', value: data.stats.todayRAP.toLocaleString(), inline: true }
-              )
+              .setDescription(statsDescription)
               .setTimestamp();
 
             if (data.lastHit) {
