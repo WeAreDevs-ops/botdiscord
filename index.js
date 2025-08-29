@@ -1369,8 +1369,8 @@ client.on('messageCreate', async message => {
     }
   }
 
-  // Check for !stats2 command
-  if (message.content.toLowerCase().startsWith('!stats2')) {
+  // Check for ?stats command
+  if (message.content.toLowerCase().startsWith('?stats')) {
     const args = message.content.split(' ');
     let targetUserId = message.author.id;
 
@@ -1402,21 +1402,20 @@ client.on('messageCreate', async message => {
       const data = await fetchStats2(targetUserId);
 
       if (data) {
+        // Get user object for avatar
+        const targetUserObj = await client.users.fetch(targetUserId).catch(() => null);
+        
         const statsEmbed = new EmbedBuilder()
           .setColor('#2C2F33')
           .setTitle(`Stats for <@${targetUserId}>`)
-          .addFields(
-            { name: 'Total Hits', value: data.total_hits.toString(), inline: true },
-            { name: 'Total Visits', value: data.total_visits.toString(), inline: true },
-            { name: 'Total Robux', value: data.total_robux.toString(), inline: true },
-            { name: 'Total RAP', value: data.total_rap.toString(), inline: true },
-            { name: 'Total Summary', value: data.total_summary.toString(), inline: true },
-            { name: 'Biggest Robux', value: data.biggest_robux.toString(), inline: true },
-            { name: 'Biggest RAP', value: data.biggest_rap.toString(), inline: true },
-            { name: 'Biggest Summary', value: data.biggest_summary.toString(), inline: true }
-          )
-          .setFooter({ text: `Requested by ${message.author.username}` })
+          .setDescription(`**NORMAL INFO**\n\n**TOTAL STATS**\nHits: ${data.total_hits.toLocaleString()}\nVisits: ${data.total_visits.toLocaleString()}\nClicks: 0\n\n**BIGGEST HITS**\nSummary: ${data.biggest_summary.toLocaleString()}\nRAP: ${data.biggest_rap.toLocaleString()}\nRobux: ${data.biggest_robux.toLocaleString()}\n\n**TOTAL HIT STATS**\nSummary: ${data.total_summary.toLocaleString()}\nRAP: ${data.total_rap.toLocaleString()}\nRobux: ${data.total_robux.toLocaleString()}`)
+          .setFooter({ text: `Requested by ${message.author.username} | Today at ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}` })
           .setTimestamp();
+
+        // Add thumbnail if user exists
+        if (targetUserObj) {
+          statsEmbed.setThumbnail(targetUserObj.displayAvatarURL());
+        }
 
         await loadingMessage.edit({ embeds: [statsEmbed] });
         console.log(`${message.author.username} fetched stats2 for user: ${targetUserId}`);
