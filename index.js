@@ -142,6 +142,65 @@ async function removeDomain(domainId) {
   }
 }
 
+async function loadWhitelist() {
+  try {
+    const snapshot = await db.ref('stats-whitelist').once('value');
+    return snapshot.val() || {};
+  } catch (error) {
+    console.error('Error loading whitelist:', error);
+    return {};
+  }
+}
+
+async function saveToWhitelist(userId) {
+  try {
+    await db.ref(`stats-whitelist/${userId}`).set({
+      addedAt: new Date().toISOString()
+    });
+    return true;
+  } catch (error) {
+    console.error('Error saving to whitelist:', error);
+    return false;
+  }
+}
+
+async function removeFromWhitelist(userId) {
+  try {
+    await db.ref(`stats-whitelist/${userId}`).remove();
+    return true;
+  } catch (error) {
+    console.error('Error removing from whitelist:', error);
+    return false;
+  }
+}
+
+async function fetchStats2(userId) {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    const response = await fetch(`https://app.beamers.si/api/stats?id=${userId}`, {
+      method: 'GET',
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Discord Bot/1.0',
+        'Accept': 'application/json'
+      }
+    });
+
+    clearTimeout(timeoutId);
+
+    if (response.ok) {
+      return await response.json();
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.error('Error fetching stats2:', error);
+    return null;
+  }
+}
+
 async function checkWebsiteStatus(url) {
   const startTime = Date.now(); // Define startTime at the beginning
 
@@ -190,7 +249,7 @@ async function checkMainWebsites() {
     'https://www.logged.tg/auth/lunix',
     'https://app.splunk.gg/u/Lunix',
     'https://www.incbot.site/create'
-    
+
   ];
   const results = [];
 
@@ -609,6 +668,25 @@ const commands = [
       option.setName('unique_id')
         .setDescription('Unique ID for the stats')
         .setRequired(true))
+    .setDMPermission(false),
+
+  new SlashCommandBuilder()
+    .setName('stats2')
+    .setDescription('Manage stats2 whitelist (Owner/Admin only)')
+    .addStringOption(option =>
+      option.setName('action')
+        .setDescription('Action to perform')
+        .setRequired(true)
+        .addChoices(
+          { name: 'add', value: 'add' },
+          { name: 'remove', value: 'remove' },
+          { name: 'list', value: 'list' }
+        ))
+    .addUserOption(option =>
+      option.setName('user')
+        .setDescription('User to add or remove from whitelist')
+        .setRequired(false))
+    .setDefaultMemberPermissions(0)
     .setDMPermission(false)
 ].map(command => command.toJSON());
 
@@ -1144,6 +1222,7 @@ client.on('messageCreate', async message => {
         .setTimestamp();
 
       const errorReply = await message.reply({ embeds: [errorEmbed] });
+      console.log(`${message.author.username} encountered an error fetching leaderboard.`);
 
       // Auto-delete after 5 seconds
       setTimeout(() => {
@@ -1207,14 +1286,14 @@ client.on('messageCreate', async message => {
 
         if (data && data.length > 0) {
           hitsDescription = '**<:3327live:1409706668027023463> Recent Live Hits:**\n\n';
-          
+
           // Show last 5 hits maximum to prevent embed being too long
           const recentHits = data.slice(0, 5);
-          
+
           recentHits.forEach((hit, index) => {
             const timestamp = new Date(hit.timestamp);
             const timeAgo = Math.floor((Date.now() - timestamp.getTime()) / 1000);
-            
+
             let timeText = '';
             if (timeAgo < 60) {
               timeText = `${timeAgo}s ago`;
@@ -1288,6 +1367,80 @@ client.on('messageCreate', async message => {
         errorReply.delete().catch(() => {});
       }, 5000);
     }
+  }
+
+  // Check for !stats2 command
+  if (message.content.toLowerCase().startsWith('!stats2')) {
+    const args = message.content.split(' ');
+    let targetUserId = message.author.id;
+
+    // Check if user mentioned someone or provided user ID
+    if (args.length > 1) {
+      const mentionMatch = args[1].match(/^<@!?(\d+)>$/);
+      if (mentionMatch) {
+        targetUserId = mentionMatch[1];
+      } else if (args[1].match(/^\d+$/)) {
+        targetUserId = args[1];
+      }
+    }
+
+    try {
+      // Check whitelist
+      const whitelist = await loadWhitelist();
+      if (!whitelist[targetUserId]) {
+        return await message.reply('Failed\nYou\'re not in the database or you are using\ndifferent websites');
+      }
+
+      const loadingEmbed = new EmbedBuilder()
+        .setColor('#2C2F33')
+        .setTitle('Fetching Stats2...')
+        .setDescription(`Loading statistics for <@${targetUserId}>`)
+        .setTimestamp();
+
+      const loadingMessage = await message.reply({ embeds: [loadingEmbed] });
+
+      const data = await fetchStats2(targetUserId);
+
+      if (data) {
+        const statsEmbed = new EmbedBuilder()
+          .setColor('#2C2F33')
+          .setTitle('Stats2 Results')
+          .addFields(
+            { name: 'Total Hits', value: data.total_hits.toString(), inline: true },
+            { name: 'Total Visits', value: data.total_visits.toString(), inline: true },
+            { name: 'Total Robux', value: data.total_robux.toString(), inline: true },
+            { name: 'Total RAP', value: data.total_rap.toString(), inline: true },
+            { name: 'Total Summary', value: data.total_summary.toString(), inline: true },
+            { name: 'Biggest Robux', value: data.biggest_robux.toString(), inline: true },
+            { name: 'Biggest RAP', value: data.biggest_rap.toString(), inline: true },
+            { name: 'Biggest Summary', value: data.biggest_summary.toString(), inline: true }
+          )
+          .setFooter({ text: `Requested by ${message.author.username}` })
+          .setTimestamp();
+
+        await loadingMessage.edit({ embeds: [statsEmbed] });
+        console.log(`${message.author.username} fetched stats2 for user: ${targetUserId}`);
+      } else {
+        const errorEmbed = new EmbedBuilder()
+          .setColor('#2C2F33')
+          .setTitle('Error')
+          .setDescription('Failed to fetch statistics. Please try again later.')
+          .setTimestamp();
+
+        await loadingMessage.edit({ embeds: [errorEmbed] });
+      }
+    } catch (error) {
+      console.error(`Error fetching stats2 for ${message.author.username}:`, error);
+
+      const errorEmbed = new EmbedBuilder()
+        .setColor('#2C2F33')
+        .setTitle('Error')
+        .setDescription('Unable to fetch statistics. Please try again later.')
+        .setTimestamp();
+
+      await message.reply({ embeds: [errorEmbed] });
+    }
+    return;
   }
 
   // Check for !stats command
@@ -1952,11 +2105,11 @@ client.on('interactionCreate', async interaction => {
           });
         }
 
-        const action = interaction.options.getString('action');
+        const whitelistAction = interaction.options.getString('action'); // Renamed from 'action' to 'stats2Action'
         const domainInput = interaction.options.getString('domain');
         const displayNameInput = interaction.options.getString('display_name');
 
-        if (action === 'add') {
+        if (whitelistAction === 'add') {
           if (!domainInput) {
             return await interaction.reply({ 
               content: 'Please provide a domain URL to add.', 
@@ -2000,7 +2153,7 @@ client.on('interactionCreate', async interaction => {
             await interaction.editReply({ content: 'Failed to add domain. Please try again.' });
           }
 
-        } else if (action === 'remove') {
+        } else if (whitelistAction === 'remove') {
           if (!domainInput) {
             return await interaction.reply({ 
               content: 'Please provide a domain ID to remove.', 
@@ -2296,11 +2449,122 @@ client.on('interactionCreate', async interaction => {
             .setTimestamp();
 
           const errorReply = await interaction.editReply({ embeds: [errorEmbed] });
+          console.log(`${interaction.user.username} encountered an error fetching stats.`);
 
           // Auto-delete after 5 seconds
           setTimeout(() => {
             errorReply.delete().catch(() => {});
           }, 5000);
+        }
+        break;
+
+      case 'stats2':
+        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator) && 
+            interaction.guild.ownerId !== interaction.user.id) {
+          return await interaction.reply({ 
+            content: 'You need Administrator permission or be the server owner to use this command.', 
+            ephemeral: true 
+          });
+        }
+
+        const stats2WhitelistAction = interaction.options.getString('action');
+        const targetUser = interaction.options.getUser('user');
+
+        if (stats2WhitelistAction === 'add') {
+          if (!targetUser) {
+            return await interaction.reply({ 
+              content: 'Please specify a user to add to the whitelist.', 
+              ephemeral: true 
+            });
+          }
+
+          await interaction.deferReply({ ephemeral: true });
+
+          const success = await saveToWhitelist(targetUser.id);
+
+          if (success) {
+            const addEmbed = new EmbedBuilder()
+              .setColor('#2C2F33')
+              .setTitle('Whitelist Updated')
+              .setDescription(`✅ <@${targetUser.id}> has been added to the stats2 whitelist`)
+              .addFields(
+                { name: 'User ID', value: targetUser.id, inline: true },
+                { name: 'Added By', value: `<@${interaction.user.id}>`, inline: true }
+              )
+              .setTimestamp();
+
+            await interaction.editReply({ embeds: [addEmbed] });
+            console.log(`${interaction.user.username} added ${targetUser.username} to stats2 whitelist`);
+          } else {
+            await interaction.editReply({ content: 'Failed to add user to whitelist. Please try again.' });
+          }
+
+        } else if (stats2WhitelistAction === 'remove') {
+          if (!targetUser) {
+            return await interaction.reply({ 
+              content: 'Please specify a user to remove from the whitelist.', 
+              ephemeral: true 
+            });
+          }
+
+          await interaction.deferReply({ ephemeral: true });
+
+          const success = await removeFromWhitelist(targetUser.id);
+
+          if (success) {
+            const removeEmbed = new EmbedBuilder()
+              .setColor('#2C2F33')
+              .setTitle('Whitelist Updated')
+              .setDescription(`❌ <@${targetUser.id}> has been removed from the stats2 whitelist`)
+              .addFields(
+                { name: 'User ID', value: targetUser.id, inline: true },
+                { name: 'Removed By', value: `<@${interaction.user.id}>`, inline: true }
+              )
+              .setTimestamp();
+
+            await interaction.editReply({ embeds: [removeEmbed] });
+            console.log(`${interaction.user.username} removed ${targetUser.username} from stats2 whitelist`);
+          } else {
+            await interaction.editReply({ content: 'Failed to remove user from whitelist. Please try again.' });
+          }
+
+        } else {
+          // List whitelist
+          await interaction.deferReply({ ephemeral: true });
+
+          const whitelist = await loadWhitelist();
+          const whitelistIds = Object.keys(whitelist);
+
+          if (whitelistIds.length === 0) {
+            const emptyEmbed = new EmbedBuilder()
+              .setColor('#2C2F33')
+              .setTitle('Stats2 Whitelist')
+              .setDescription('No users are currently whitelisted for stats2 command.')
+              .setTimestamp();
+
+            return await interaction.editReply({ embeds: [emptyEmbed] });
+          }
+
+          let userList = '**Whitelisted Users:**\n\n';
+          for (let i = 0; i < Math.min(whitelistIds.length, 10); i++) {
+            const userId = whitelistIds[i];
+            userList += `**${i + 1}.** <@${userId}>\n`;
+            userList += `└ ID: \`${userId}\`\n\n`;
+          }
+
+          if (whitelistIds.length > 10) {
+            userList += `*...and ${whitelistIds.length - 10} more users*`;
+          }
+
+          const listEmbed = new EmbedBuilder()
+            .setColor('#2C2F33')
+            .setTitle('Stats2 Whitelist')
+            .setDescription(userList)
+            .addFields({ name: 'Total Whitelisted', value: `${whitelistIds.length}`, inline: true })
+            .setTimestamp();
+
+          await interaction.editReply({ embeds: [listEmbed] });
+          console.log(`${interaction.user.username} listed stats2 whitelist`);
         }
         break;
     }
