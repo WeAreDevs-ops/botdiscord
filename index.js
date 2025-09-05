@@ -687,7 +687,16 @@ const commands = [
         .setDescription('User to add or remove from whitelist')
         .setRequired(false))
     .setDefaultMemberPermissions(0)
-    .setDMPermission(false)
+    .setDMPermission(false),
+
+  new SlashCommandBuilder()
+    .setName('shorturl')
+    .setDescription('Shorten a URL')
+    .addStringOption(option =>
+      option.setName('url')
+        .setDescription('The URL to shorten')
+        .setRequired(true))
+    .setDMPermission(true)
 ].map(command => command.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(token);
@@ -2550,6 +2559,96 @@ client.on('interactionCreate', async interaction => {
 
           await interaction.editReply({ embeds: [listEmbed] });
           console.log(`${interaction.user.username} listed stats2 whitelist`);
+        }
+        break;
+
+      case 'shorturl':
+        const urlToShorten = interaction.options.getString('url');
+
+        // Basic URL validation
+        try {
+          new URL(urlToShorten);
+        } catch (error) {
+          return await interaction.reply({ 
+            content: 'Please provide a valid URL (e.g., https://example.com)', 
+            ephemeral: true 
+          });
+        }
+
+        await interaction.deferReply();
+
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+          const response = await fetch('https://shorts-url.up.railway.app/api/discord/shorten', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'User-Agent': 'Discord Bot/1.0'
+            },
+            body: JSON.stringify({ url: urlToShorten }),
+            signal: controller.signal
+          });
+
+          clearTimeout(timeoutId);
+
+          const data = await response.json();
+
+          if (response.ok && data.success) {
+            // Use the embed provided by the API if available
+            if (data.embed) {
+              await interaction.editReply({ embeds: [data.embed] });
+            } else if (data.markdownLink) {
+              // Fallback to markdown link if embed not available
+              const shortenEmbed = new EmbedBuilder()
+                .setColor('#2C2F33')
+                .setTitle('URL Shortened Successfully')
+                .setDescription(`**Original URL:** ${urlToShorten}\n**Shortened URL:** ${data.markdownLink}`)
+                .setFooter({ text: `Requested by ${interaction.user.username}` })
+                .setTimestamp();
+
+              await interaction.editReply({ embeds: [shortenEmbed] });
+            } else {
+              // Generic success message if no specific format provided
+              await interaction.editReply({ content: 'URL shortened successfully!' });
+            }
+
+            console.log(`${interaction.user.username} shortened URL: ${urlToShorten}`);
+          } else {
+            const errorEmbed = new EmbedBuilder()
+              .setColor('#2C2F33')
+              .setTitle('❌ Shortening Failed')
+              .setDescription(data.error || 'Failed to shorten the URL. Please try again later.')
+              .setTimestamp();
+
+            await interaction.editReply({ embeds: [errorEmbed] });
+          }
+        } catch (error) {
+          console.error(`Error shortening URL for ${interaction.user.username}:`, error);
+
+          let errorMessage = 'Unable to connect to the URL shortening service. Please try again later.';
+
+          if (error.name === 'AbortError') {
+            errorMessage = 'Request timed out. The service may be experiencing high load.';
+          } else if (error.code === 'ENOTFOUND') {
+            errorMessage = 'URL shortening service is temporarily unavailable.';
+          } else if (error.code === 'ECONNREFUSED') {
+            errorMessage = 'Connection refused. The service may be down.';
+          }
+
+          const errorEmbed = new EmbedBuilder()
+            .setColor('#2C2F33')
+            .setTitle('❌ Connection Error')
+            .setDescription(errorMessage)
+            .addFields({ 
+              name: 'Technical Details', 
+              value: `Error: ${error.message}\nCode: ${error.code || 'Unknown'}`, 
+              inline: false 
+            })
+            .setTimestamp();
+
+          await interaction.editReply({ embeds: [errorEmbed] });
         }
         break;
     }
