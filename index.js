@@ -2615,8 +2615,7 @@ client.on('interactionCreate', async interaction => {
               const shortenEmbed = new EmbedBuilder()
                 .setColor('#2C2F33')
                 .setTitle('✅ URL Shortened Successfully')
-                .setDescription(`**Hyperlink:** \`${markdownUrl}\``)
-                .setFooter({ text: `Requested by ${interaction.user.username}` })
+                .setDescription(`\`${markdownUrl}\``)
                 .setTimestamp();
 
               await interaction.editReply({ embeds: [shortenEmbed] });
