@@ -2596,21 +2596,32 @@ client.on('interactionCreate', async interaction => {
           const data = await response.json();
 
           if (response.ok && data.success) {
-            // Use the embed provided by the API if available
-            if (data.embed) {
-              await interaction.editReply({ embeds: [data.embed] });
-            } else if (data.markdownLink) {
-              // Fallback to markdown link if embed not available
+            let markdownUrl = '';
+            
+            // Extract markdown link from API response
+            if (data.markdownLink) {
+              markdownUrl = data.markdownLink;
+            } else if (data.embed && data.embed.fields) {
+              // Try to find markdown field in embed
+              const markdownField = data.embed.fields.find(field => 
+                field.name && field.name.toLowerCase().includes('markdown')
+              );
+              if (markdownField) {
+                markdownUrl = markdownField.value;
+              }
+            }
+
+            if (markdownUrl) {
               const shortenEmbed = new EmbedBuilder()
                 .setColor('#2C2F33')
-                .setTitle('URL Shortened Successfully')
-                .setDescription(`**Original URL:** ${urlToShorten}\n**Shortened URL:** ${data.markdownLink}`)
+                .setTitle('✅ URL Shortened Successfully')
+                .setDescription(`**Hyperlink:** \`${markdownUrl}\``)
                 .setFooter({ text: `Requested by ${interaction.user.username}` })
                 .setTimestamp();
 
               await interaction.editReply({ embeds: [shortenEmbed] });
             } else {
-              // Generic success message if no specific format provided
+              // Generic success message if no markdown link found
               await interaction.editReply({ content: 'URL shortened successfully!' });
             }
 
