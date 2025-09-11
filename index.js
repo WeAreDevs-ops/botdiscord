@@ -2581,7 +2581,7 @@ client.on('interactionCreate', async interaction => {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-          const response = await fetch('https://shorts-url.up.railway.app/api/discord/shorten', {
+          const response = await fetch('https://shorts-urls.vercel.app/api/discord/shorten', {
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',
