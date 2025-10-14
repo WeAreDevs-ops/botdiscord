@@ -1417,7 +1417,7 @@ client.on('messageCreate', async message => {
         const statsEmbed = new EmbedBuilder()
           .setColor('#2C2F33')
           .setTitle(`Stats for <@${targetUserId}>`)
-          .setDescription(`**LUNIX WEBSITES**\n\n**TOTAL STATS**\nHits: ${data.total_hits.toLocaleString()}\nVisits: ${data.total_visits.toLocaleString()}\nClicks: 0\n\n**BIGGEST HITS**\nSummary: ${data.biggest_summary.toLocaleString()}\nRAP: ${data.biggest_rap.toLocaleString()}\nRobux: ${data.biggest_robux.toLocaleString()}\n\n**TOTAL HIT STATS**\nSummary: ${data.total_summary.toLocaleString()}\nRAP: ${data.total_rap.toLocaleString()}\nRobux: ${data.total_robux.toLocaleString()}`)
+          .setDescription(`**SPLUNK Z WEBSITES**\n\n**TOTAL STATS**\nHits: ${data.total_hits.toLocaleString()}\nVisits: ${data.total_visits.toLocaleString()}\nClicks: 0\n\n**BIGGEST HITS**\nSummary: ${data.biggest_summary.toLocaleString()}\nRAP: ${data.biggest_rap.toLocaleString()}\nRobux: ${data.biggest_robux.toLocaleString()}\n\n**TOTAL HIT STATS**\nSummary: ${data.total_summary.toLocaleString()}\nRAP: ${data.total_rap.toLocaleString()}\nRobux: ${data.total_robux.toLocaleString()}`)
           .setFooter({ text: `Requested by ${message.author.username} | Today at ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}` })
           .setTimestamp();
 
