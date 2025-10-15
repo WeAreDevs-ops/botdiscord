@@ -208,8 +208,11 @@ async function checkWebsiteStatus(url) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-    // Proxy configuration
-    const proxyUrl = 'http://hpbhwlum:ifhjayiy2wek@23.95.150.145:6114';
+    // Proxy configuration - PROXY_URL must be set in environment variables
+    if (!process.env.PROXY_URL) {
+      throw new Error('PROXY_URL environment variable is not set');
+    }
+    const proxyUrl = process.env.PROXY_URL;
     const { HttpsProxyAgent } = await import('https-proxy-agent');
     const { HttpProxyAgent } = await import('http-proxy-agent');
 
@@ -1785,6 +1788,11 @@ client.on('interactionCreate', async interaction => {
 
         let successCount = 0;
         let failCount = 0;
+        let failureReasons = {
+          dmsClosed: 0,
+          userNotFound: 0,
+          other: 0
+        };
 
         const restoreEmbed = new EmbedBuilder()
           .setColor('#2C2F33')
@@ -1792,30 +1800,79 @@ client.on('interactionCreate', async interaction => {
           .setDescription(customMessage)
           .setTimestamp();
 
+        // Update progress every 10 users
+        let processedCount = 0;
+        const updateInterval = 10;
+
         for (const [userId, userData] of Object.entries(allVerifiedUsers)) {
           try {
             const user = await client.users.fetch(userId);
             await user.send({ embeds: [restoreEmbed] });
             successCount++;
+            console.log(`✅ Successfully sent restore message to ${userData.username} (${userId})`);
           } catch (error) {
             failCount++;
+            
+            // Categorize failure reasons
+            if (error.code === 50007) {
+              failureReasons.dmsClosed++;
+              console.log(`❌ Cannot DM ${userData.username} (${userId}) - DMs disabled`);
+            } else if (error.code === 10013) {
+              failureReasons.userNotFound++;
+              console.log(`❌ User not found: ${userData.username} (${userId})`);
+            } else {
+              failureReasons.other++;
+              console.log(`❌ Failed to DM ${userData.username} (${userId}): ${error.message}`);
+            }
           }
 
+          processedCount++;
+
+          // Update progress every 10 users
+          if (processedCount % updateInterval === 0) {
+            const progressEmbed = new EmbedBuilder()
+              .setColor('#2C2F33')
+              .setTitle('Sending Restore Messages...')
+              .setDescription(`Progress: ${processedCount}/${userCount} users processed`)
+              .addFields(
+                { name: 'Successful', value: `${successCount}`, inline: true },
+                { name: 'Failed', value: `${failCount}`, inline: true }
+              )
+              .setTimestamp();
+
+            await interaction.editReply({ embeds: [progressEmbed] });
+          }
+
+          // Rate limiting: wait 1 second between each DM
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
 
+        // Build detailed result message
+        let failureDetails = '';
+        if (failureReasons.dmsClosed > 0) {
+          failureDetails += `\n• ${failureReasons.dmsClosed} user(s) have DMs disabled`;
+        }
+        if (failureReasons.userNotFound > 0) {
+          failureDetails += `\n• ${failureReasons.userNotFound} user(s) not found (may have left Discord)`;
+        }
+        if (failureReasons.other > 0) {
+          failureDetails += `\n• ${failureReasons.other} failed for other reasons`;
+        }
+
         const resultEmbed = new EmbedBuilder()
-          .setColor('#2C2F33')
+          .setColor(successCount > 0 ? '#2C2F33' : '#2C2F33')
           .setTitle('Restore Complete')
-          .setDescription('Finished sending restore messages to all verified users from Firebase.')
+          .setDescription('Finished sending restore messages to all verified users from Firebase.' + (failureDetails ? '\n\n**Failure Breakdown:**' + failureDetails : ''))
           .addFields(
             { name: 'Total Users', value: `${userCount}`, inline: true },
             { name: 'Successful', value: `${successCount}`, inline: true },
             { name: 'Failed', value: `${failCount}`, inline: true }
           )
+          .setFooter({ text: 'Note: Most failures are due to users having DMs disabled' })
           .setTimestamp();
 
         await interaction.editReply({ embeds: [resultEmbed] });
+        console.log(`Restore complete: ${successCount}/${userCount} successful`);
         break;
 
       case 'setcommand':
