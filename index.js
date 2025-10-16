@@ -121,7 +121,8 @@ async function saveDomain(domainData) {
     const domainId = `domain_${Date.now()}`;
     await db.ref(`monitored-domains/${domainId}`).set({
       url: domainData.url,
-      displayName: domainData.displayName || new URL(domainData.url).hostname, // Store display name or hostname
+      displayName: domainData.displayName || new URL(domainData.url).hostname,
+      site: domainData.site || 'Other', // Store the website category
       addedBy: domainData.addedBy,
       addedAt: new Date().toISOString()
     });
@@ -634,12 +635,23 @@ const commands = [
         .addChoices(
           { name: 'list', value: 'list' },
           { name: 'add', value: 'add' },
-          { name: 'remove', value: 'remove' }
+          { name: 'remove', value: 'remove' },
+          { name: 'remove_all', value: 'remove_all' }
         ))
     .addStringOption(option =>
       option.setName('domain')
         .setDescription('Domain URL to add or domain ID to remove')
         .setRequired(false))
+    .addStringOption(option =>
+      option.setName('site')
+        .setDescription('Website category (Immortal, Splunk, Incbot)')
+        .setRequired(false)
+        .addChoices(
+          { name: 'Immortal', value: 'Immortal' },
+          { name: 'Splunk', value: 'Splunk' },
+          { name: 'Incbot', value: 'Incbot' },
+          { name: 'Other', value: 'Other' }
+        ))
     .addStringOption(option =>
       option.setName('display_name')
         .setDescription('Custom display name for the domain (optional)')
@@ -1005,21 +1017,45 @@ client.on('messageCreate', async message => {
       if (results.length === 0) {
         description = 'No Domain Added';
       } else {
+        // Load all domains to get site information
+        const domains = await loadMonitoredDomains();
+        
+        // Group results by site
+        const groupedResults = {};
+        results.forEach(result => {
+          const domainData = domains.find(d => d.id === result.domainId);
+          const site = domainData?.site || 'Other';
+          
+          if (!groupedResults[site]) {
+            groupedResults[site] = [];
+          }
+          groupedResults[site].push({
+            ...result,
+            displayName: domainData?.displayName || new URL(result.url).hostname
+          });
+        });
+
         description = '**All Monitored Domains:**\n\n';
 
-        for (const result of results) {
-          const statusEmoji = result.status === 'UP' ? '🟢' : '🔴';
-          const statusText = result.status === 'UP' ? 'UP' : 'DOWN';
-          const domain = new URL(result.url).hostname;
+        // Display results grouped by site
+        for (const [site, siteResults] of Object.entries(groupedResults)) {
+          description += `**${site}**\n`;
+          
+          siteResults.forEach(result => {
+            const statusEmoji = result.status === 'UP' ? '🟢' : '🔴';
+            const statusText = result.status === 'UP' ? 'UP' : 'DOWN';
 
-          description += `${statusEmoji} **${domain}** - ${statusText}`;
+            description += `${statusEmoji} ${result.displayName} - ${statusText}`;
 
-          if (result.status === 'UP') {
-            description += ` (${result.responseTime}ms)`;
-          } else if (result.error) {
-            description += ` - ${result.error}`;
-          }
+            if (result.status === 'UP') {
+              description += ` (${result.responseTime}ms)`;
+            } else if (result.error) {
+              description += ` - ${result.error}`;
+            }
 
+            description += '\n';
+          });
+          
           description += '\n';
         }
       }
@@ -2185,11 +2221,14 @@ client.on('interactionCreate', async interaction => {
             });
           }
 
+          const siteInput = interaction.options.getString('site');
+
           await interaction.deferReply({ ephemeral: true });
 
           const domainId = await saveDomain({
             url: domainInput,
-            displayName: displayNameInput, // Use provided display name
+            displayName: displayNameInput,
+            site: siteInput || 'Other',
             addedBy: interaction.user.id
           });
 
@@ -2200,13 +2239,14 @@ client.on('interactionCreate', async interaction => {
               .setDescription(`✅ **${displayNameInput || new URL(domainInput).hostname}** has been added to monitoring`)
               .addFields(
                 { name: 'Full URL', value: domainInput, inline: false },
+                { name: 'Site Category', value: siteInput || 'Other', inline: true },
                 { name: 'Domain ID', value: domainId, inline: true },
                 { name: 'Added By', value: `<@${interaction.user.id}>`, inline: true }
               )
               .setTimestamp();
 
             await interaction.editReply({ embeds: [addEmbed] });
-            console.log(`${interaction.user.username} added domain: ${domainInput} with display name: ${displayNameInput}`);
+            console.log(`${interaction.user.username} added domain: ${domainInput} with site: ${siteInput}`);
           } else {
             await interaction.editReply({ content: 'Failed to add domain. Please try again.' });
           }
@@ -2248,6 +2288,46 @@ client.on('interactionCreate', async interaction => {
             await interaction.editReply({ content: 'Failed to remove domain. Please try again.' });
           }
 
+        } else if (whitelistAction === 'remove_all') {
+          await interaction.deferReply({ ephemeral: true });
+
+          const domains = await loadMonitoredDomains();
+
+          if (domains.length === 0) {
+            const emptyEmbed = new EmbedBuilder()
+              .setColor('#2C2F33')
+              .setTitle('No Domains to Remove')
+              .setDescription('There are no domains currently being monitored.')
+              .setTimestamp();
+
+            return await interaction.editReply({ embeds: [emptyEmbed] });
+          }
+
+          let removedCount = 0;
+          let failedCount = 0;
+
+          for (const domain of domains) {
+            const success = await removeDomain(domain.id);
+            if (success) {
+              removedCount++;
+            } else {
+              failedCount++;
+            }
+          }
+
+          const removeAllEmbed = new EmbedBuilder()
+            .setColor('#2C2F33')
+            .setTitle('All Domains Removed')
+            .setDescription(`Successfully removed **${removedCount}** domain(s) from monitoring.${failedCount > 0 ? `\n\n⚠️ Failed to remove ${failedCount} domain(s).` : ''}`)
+            .addFields(
+              { name: 'Total Removed', value: `${removedCount}`, inline: true },
+              { name: 'Removed By', value: `<@${interaction.user.id}>`, inline: true }
+            )
+            .setTimestamp();
+
+          await interaction.editReply({ embeds: [removeAllEmbed] });
+          console.log(`${interaction.user.username} removed all ${removedCount} domains`);
+
         } else {
           // List domains
           await interaction.deferReply({ ephemeral: true });
@@ -2258,21 +2338,34 @@ client.on('interactionCreate', async interaction => {
             const emptyEmbed = new EmbedBuilder()
               .setColor('#2C2F33')
               .setTitle('Domain Management')
-              .setDescription('No domains are currently being monitored.\n\nUse `/listdomain action:add domain:https://example.com display_name:ExampleSite` to add a domain.')
+              .setDescription('No domains are currently being monitored.\n\nUse `/listdomain action:add domain:https://example.com site:Immortal` to add a domain.')
               .setTimestamp();
 
             return await interaction.editReply({ embeds: [emptyEmbed] });
           }
 
+          // Group domains by site
+          const groupedDomains = {};
+          domains.forEach(domain => {
+            const site = domain.site || 'Other';
+            if (!groupedDomains[site]) {
+              groupedDomains[site] = [];
+            }
+            groupedDomains[site].push(domain);
+          });
+
           let domainList = '**Monitored Website Domains:**\n\n';
 
-          for (let i = 0; i < domains.length; i++) {
-            const domain = domains[i];
-            const displayName = domain.displayName || new URL(domain.url).hostname;
-            domainList += `**${i + 1}.** ${displayName}\n`;
-            domainList += `└ URL: ${domain.url}\n`;
-            domainList += `└ ID: \`${domain.id}\`\n`;
-            domainList += `└ Added: <t:${Math.floor(new Date(domain.addedAt).getTime() / 1000)}:R>\n\n`;
+          // Display domains grouped by site
+          for (const [site, siteDomains] of Object.entries(groupedDomains)) {
+            domainList += `**${site}**\n`;
+            siteDomains.forEach(domain => {
+              const displayName = domain.displayName || new URL(domain.url).hostname;
+              domainList += `• ${displayName}\n`;
+              domainList += `  └ URL: ${domain.url}\n`;
+              domainList += `  └ ID: \`${domain.id}\`\n`;
+            });
+            domainList += '\n';
           }
 
           const listEmbed = new EmbedBuilder()
@@ -2280,7 +2373,7 @@ client.on('interactionCreate', async interaction => {
             .setTitle('Domain Management')
             .setDescription(domainList)
             .addFields({ name: 'Total Domains', value: `${domains.length}`, inline: true })
-            .setFooter({ text: `Use /listdomain action:add domain:URL display_name:Name to add | Use /listdomain action:remove domain:ID to remove` })
+            .setFooter({ text: `Use /listdomain action:add domain:URL site:Immortal to add | Use /listdomain action:remove domain:ID to remove` })
             .setTimestamp();
 
           await interaction.editReply({ embeds: [listEmbed] });
@@ -2299,25 +2392,45 @@ client.on('interactionCreate', async interaction => {
           if (results.length === 0) {
             description = 'No Domain Added';
           } else {
+            // Load all domains to get site information
+            const domains = await loadMonitoredDomains();
+            
+            // Group results by site
+            const groupedResults = {};
+            results.forEach(result => {
+              const domainData = domains.find(d => d.id === result.domainId);
+              const site = domainData?.site || 'Other';
+              
+              if (!groupedResults[site]) {
+                groupedResults[site] = [];
+              }
+              groupedResults[site].push({
+                ...result,
+                displayName: domainData?.displayName || new URL(result.url).hostname
+              });
+            });
+
             description = '**All Monitored Domains:**\n\n';
 
-            for (const result of results) {
-              const statusEmoji = result.status === 'UP' ? '🟢' : '🔴';
-              const statusText = result.status === 'UP' ? 'UP' : 'DOWN';
+            // Display results grouped by site
+            for (const [site, siteResults] of Object.entries(groupedResults)) {
+              description += `**${site}**\n`;
+              
+              siteResults.forEach(result => {
+                const statusEmoji = result.status === 'UP' ? '🟢' : '🔴';
+                const statusText = result.status === 'UP' ? 'UP' : 'DOWN';
 
-              // Find the domain data to get display name
-              const domains = await loadMonitoredDomains();
-              const domainData = domains.find(d => d.id === result.domainId);
-              const displayName = domainData?.displayName || new URL(result.url).hostname;
+                description += `${statusEmoji} ${result.displayName} - ${statusText}`;
 
-              description += `${statusEmoji} **${displayName}** - ${statusText}`;
+                if (result.status === 'UP') {
+                  description += ` (${result.responseTime}ms)`;
+                } else if (result.error) {
+                  description += ` - ${result.error}`;
+                }
 
-              if (result.status === 'UP') {
-                description += ` (${result.responseTime}ms)`;
-              } else if (result.error) {
-                description += ` - ${result.error}`;
-              }
-
+                description += '\n';
+              });
+              
               description += '\n';
             }
           }
