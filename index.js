@@ -249,7 +249,7 @@ async function checkWebsiteStatus(url) {
 
 async function checkMainWebsites() {
   const mainWebsites = [
-    'https://www.logged.tg/auth/lunix',
+    'https://immortal.rs/?code=Mzc2NDkwMjE4MTYyNjE4NzAyNA==',
     'https://app.splunk.gg/u/Lunix',
     'https://www.incbot.site/create'
 
