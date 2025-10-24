@@ -12,6 +12,7 @@ import {
 } from 'discord.js';
 import dotenv from 'dotenv';
 import admin from 'firebase-admin';
+import axios from 'axios';
 
 dotenv.config();
 
@@ -198,6 +199,23 @@ async function fetchStats2(userId) {
     }
   } catch (error) {
     console.error('Error fetching stats2:', error);
+    return null;
+  }
+}
+
+async function getBloxFruitStock() {
+  try {
+    const res = await axios.get("https://blox-fruit-stock-fruit.p.rapidapi.com/", {
+      headers: {
+        "x-rapidapi-host": "blox-fruit-stock-fruit.p.rapidapi.com",
+        "x-rapidapi-key": process.env.RAPIDAPI_KEY
+      },
+      timeout: 10000
+    });
+
+    return res.data;
+  } catch (err) {
+    console.error("Error fetching fruit stock:", err.message);
     return null;
   }
 }
@@ -1618,6 +1636,65 @@ client.on('messageCreate', async message => {
         errorReply.delete().catch(() => {});
       }, 5000);
     }
+  }
+
+  // Check for !stock command
+  if (message.content.toLowerCase() === '!stock') {
+    try {
+      const loadingEmbed = new EmbedBuilder()
+        .setColor('#2C2F33')
+        .setTitle('Fetching Blox Fruits Stock...')
+        .setDescription('Loading current fruit availability...')
+        .setTimestamp();
+
+      const loadingMessage = await message.reply({ embeds: [loadingEmbed] });
+
+      const data = await getBloxFruitStock();
+
+      if (!data) {
+        const errorEmbed = new EmbedBuilder()
+          .setColor('#2C2F33')
+          .setTitle('⚠️ Error')
+          .setDescription('Couldn\'t fetch fruit stock. Please try again later.')
+          .setTimestamp();
+
+        const errorReply = await loadingMessage.edit({ embeds: [errorEmbed] });
+
+        // Auto-delete after 5 seconds
+        setTimeout(() => {
+          errorReply.delete().catch(() => {});
+        }, 5000);
+        return;
+      }
+
+      const normalList = data.normal?.map(f => `🍎 **${f.name}** — ${f.price}`).join("\n") || "None";
+      const mirageList = data.mirage?.map(f => `🌫 **${f.name}** — ${f.price}`).join("\n") || "None";
+
+      const stockEmbed = new EmbedBuilder()
+        .setColor(0xffc107)
+        .setTitle('🧭 Blox Fruits Stock')
+        .addFields(
+          { name: 'Normal Stock', value: normalList, inline: false },
+          { name: 'Mirage Stock', value: mirageList, inline: false }
+        )
+        .setFooter({ text: `Updated: ${data.updatedAt || 'now'} | Requested by ${message.author.username}` })
+        .setTimestamp();
+
+      await loadingMessage.edit({ embeds: [stockEmbed] });
+      console.log(`${message.author.username} checked Blox Fruits stock`);
+
+    } catch (error) {
+      console.error(`Error fetching Blox Fruits stock for ${message.author.username}:`, error);
+
+      const errorEmbed = new EmbedBuilder()
+        .setColor('#2C2F33')
+        .setTitle('❌ Error')
+        .setDescription('Unable to fetch Blox Fruits stock. Please try again later.')
+        .setTimestamp();
+
+      await message.reply({ embeds: [errorEmbed] });
+    }
+    return;
   }
 
   // Check for !purge command
