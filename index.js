@@ -1667,8 +1667,8 @@ client.on('messageCreate', async message => {
         return;
       }
 
-      const normalList = data.normal?.map(f => `🍎 **${f.name}** — ${f.price}`).join("\n") || "None";
-      const mirageList = data.mirage?.map(f => `🌫 **${f.name}** — ${f.price}`).join("\n") || "None";
+      const normalList = data.normalStock?.map(f => `🍎 **${f}**`).join("\n") || "None";
+      const mirageList = data.mirageStock?.map(f => `🌫 **${f}**`).join("\n") || "None";
 
       const stockEmbed = new EmbedBuilder()
         .setColor(0xffc107)
